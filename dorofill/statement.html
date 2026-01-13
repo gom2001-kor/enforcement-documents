@@ -422,11 +422,16 @@
         </div>
     </footer>
 
+    <!-- Hidden File Input for PDF Template -->
+    <input type="file" id="pdfTemplateInput" accept=".pdf" style="display: none;">
+
     <!-- Scripts -->
     <script src="js/app.js"></script>
     <script src="js/validator.js"></script>
     <script src="js/calculator.js"></script>
     <script src="js/pdf-handler.js"></script>
+    <script src="js/pdf-coordinates.js"></script>
+    <script src="js/pdf-generator.js"></script>
 
     <!-- Page Specific Script -->
     <script>
@@ -557,7 +562,56 @@
                         return;
                     }
 
-                    showToast('PDF 생성 기능은 추후 구현 예정입니다', 'info');
+                    // PDF 템플릿 파일 선택 트리거
+                    const templateInput = document.getElementById('pdfTemplateInput');
+                    templateInput.click();
+                });
+            }
+
+            // === PDF Template File Handler ===
+            const templateInput = document.getElementById('pdfTemplateInput');
+            if (templateInput) {
+                templateInput.addEventListener('change', async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    try {
+                        showToast('PDF 생성 중...', 'info');
+
+                        // 폼 데이터 수집
+                        const formData = {};
+                        formFields.forEach(field => {
+                            const el = document.getElementById(field);
+                            if (el) formData[field] = el.value;
+                        });
+
+                        // 진술인 데이터 수집
+                        const witnesses = [];
+                        const cards = witnessContainer.querySelectorAll('.witness-card');
+                        cards.forEach((card, index) => {
+                            const id = index + 1;
+                            witnesses.push({
+                                office: document.getElementById(`witness${id}Office`)?.value || '',
+                                position: document.getElementById(`witness${id}Position`)?.value || '',
+                                name: document.getElementById(`witness${id}Name`)?.value || ''
+                            });
+                        });
+
+                        // PDF 생성
+                        const pdfDoc = await fillStatementPdf(formData, witnesses, file);
+
+                        // 다운로드
+                        await downloadPdf(pdfDoc, '위반진술서');
+
+                        showToast('PDF 생성이 완료되었습니다', 'success');
+
+                    } catch (error) {
+                        console.error('PDF 생성 실패:', error);
+                        showToast('PDF 생성에 실패했습니다: ' + error.message, 'error');
+                    }
+
+                    // 파일 입력 초기화 (같은 파일 다시 선택 가능)
+                    templateInput.value = '';
                 });
             }
 

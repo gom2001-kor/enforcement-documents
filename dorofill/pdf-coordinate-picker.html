@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF 좌표 측정기 - DoroFill</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e293b;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .main {
+            display: flex;
+            height: calc(100vh - 60px);
+        }
+
+        .pdf-container {
+            flex: 1;
+            overflow: auto;
+            padding: 1rem;
+            background: #334155;
+            position: relative;
+        }
+
+        .pdf-image-wrapper {
+            position: relative;
+            display: inline-block;
+            cursor: crosshair;
+        }
+
+        .pdf-image {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #475569;
+            border-radius: 8px;
+        }
+
+        .marker {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #ef4444;
+            border: 2px solid white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .marker-label {
+            position: absolute;
+            left: 16px;
+            top: -8px;
+            background: #ef4444;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+        }
+
+        .sidebar {
+            width: 400px;
+            background: #0f172a;
+            padding: 1rem;
+            overflow-y: auto;
+            border-left: 1px solid #334155;
+        }
+
+        .sidebar h2 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            color: #60a5fa;
+        }
+
+        .coord-list {
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .coord-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            border-bottom: 1px solid #334155;
+            font-size: 0.875rem;
+        }
+
+        .coord-item:last-child {
+            border-bottom: none;
+        }
+
+        .coord-item .name {
+            color: #34d399;
+            font-weight: 600;
+        }
+
+        .coord-item .coords {
+            color: #fbbf24;
+            font-family: monospace;
+        }
+
+        .coord-item .delete {
+            color: #ef4444;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-bottom: 0.25rem;
+        }
+
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            background: #1e293b;
+            color: white;
+            font-size: 0.875rem;
+        }
+
+        .output-box {
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Consolas', monospace;
+            font-size: 0.75rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #334155;
+        }
+
+        .info-bar {
+            background: #334155;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.75rem;
+        }
+
+        .info-bar span {
+            margin-right: 1.5rem;
+        }
+
+        .current-pos {
+            color: #60a5fa;
+        }
+
+        .page-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .page-tab {
+            padding: 0.5rem 1rem;
+            background: #334155;
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .page-tab.active {
+            background: #2563eb;
+            color: white;
+        }
+
+        .instructions {
+            background: #1e3a5f;
+            border-left: 3px solid #3b82f6;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            font-size: 0.75rem;
+            border-radius: 0 8px 8px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>📍 PDF 좌표 측정기</h1>
+        <div class="controls">
+            <input type="file" id="imageInput" accept="image/*" style="display:none">
+            <button class="btn btn-outline" onclick="document.getElementById('imageInput').click()">
+                🖼️ 이미지 불러오기
+            </button>
+            <button class="btn btn-success" onclick="copyOutput()">
+                📋 좌표 복사
+            </button>
+            <button class="btn btn-primary" onclick="clearAllMarkers()">
+                🗑️ 초기화
+            </button>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="pdf-container" id="pdfContainer">
+            <div class="instructions">
+                <strong>💡 사용 방법:</strong><br>
+                1. PDF를 이미지(PNG/JPG)로 저장하거나 화면 캡처<br>
+                2. "이미지 불러오기" 클릭하여 이미지 선택<br>
+                3. 이미지 위에서 원하는 위치 클릭하여 좌표 측정<br>
+                4. 필드 이름 입력 후 "좌표 복사"로 코드 복사
+            </div>
+
+            <div class="page-tabs">
+                <button class="page-tab active" data-page="1">페이지 1 (적발 보고서)</button>
+                <button class="page-tab" data-page="2">페이지 2 (진술서)</button>
+            </div>
+
+            <div class="pdf-image-wrapper" id="imageWrapper">
+                <img id="pdfImage" class="pdf-image" src="" alt="PDF 이미지를 불러오세요"
+                    style="min-height: 400px; background: #1e293b; display: flex; align-items: center; justify-content: center;">
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="info-bar">
+                <span>현재 페이지: <strong id="currentPage">1</strong></span>
+                <span>마우스 위치: <span class="current-pos" id="mousePos">-</span></span>
+            </div>
+
+            <div class="input-group">
+                <label>필드 이름 (다음 클릭에 적용됨)</label>
+                <input type="text" id="fieldName" placeholder="예: reportDatetime">
+            </div>
+
+            <div class="input-group">
+                <label>폰트 크기</label>
+                <select id="fontSize">
+                    <option value="9">9pt (작은 글씨)</option>
+                    <option value="10">10pt</option>
+                    <option value="11" selected>11pt (기본)</option>
+                    <option value="12">12pt</option>
+                    <option value="14">14pt (중간제목)</option>
+                    <option value="16">16pt</option>
+                    <option value="18">18pt (제목)</option>
+                </select>
+            </div>
+
+            <h2>📍 저장된 좌표 (<span id="markerCount">0</span>개)</h2>
+            <div class="coord-list" id="coordList">
+                <div style="color: #64748b; text-align: center; padding: 1rem;">
+                    이미지를 클릭하여 좌표를 추가하세요
+                </div>
+            </div>
+
+            <h2>📋 PDF_COORDINATES 코드</h2>
+            <div class="output-box" id="outputCode">
+                // 좌표를 측정하면 여기에 코드가 생성됩니다
+                const PDF_COORDINATES = {
+                page1: {
+                // 클릭하여 좌표 추가
+                },
+                page2: {
+                // 클릭하여 좌표 추가
+                }
+                };
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 상태 관리
+        let currentPage = 1;
+        let markers = {
+            page1: [],
+            page2: []
+        };
+
+        // PDF 크기 (포인트 단위)
+        const PDF_SIZE = {
+            width: 595.00,
+            height: 841.00
+        };
+
+        // 이미지 크기 (렌더링된 크기)
+        let imageSize = { width: 0, height: 0 };
+
+        // DOM 요소
+        const imageWrapper = document.getElementById('imageWrapper');
+        const pdfImage = document.getElementById('pdfImage');
+        const fieldNameInput = document.getElementById('fieldName');
+        const fontSizeSelect = document.getElementById('fontSize');
+        const coordList = document.getElementById('coordList');
+        const outputCode = document.getElementById('outputCode');
+        const markerCountSpan = document.getElementById('markerCount');
+        const mousePosSpan = document.getElementById('mousePos');
+        const currentPageSpan = document.getElementById('currentPage');
+
+        // 이미지 불러오기
+        document.getElementById('imageInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                pdfImage.src = event.target.result;
+                pdfImage.style.minHeight = 'auto';
+
+                pdfImage.onload = () => {
+                    imageSize.width = pdfImage.naturalWidth;
+                    imageSize.height = pdfImage.naturalHeight;
+                    console.log(`이미지 로드: ${imageSize.width} x ${imageSize.height}`);
+                };
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // 페이지 탭 전환
+        document.querySelectorAll('.page-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.page-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                currentPage = parseInt(tab.dataset.page);
+                currentPageSpan.textContent = currentPage;
+                updateDisplay();
+            });
+        });
+
+        // 마우스 위치 추적
+        imageWrapper.addEventListener('mousemove', (e) => {
+            if (!pdfImage.naturalWidth) return;
+
+            const rect = pdfImage.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // PDF 좌표로 변환 (PDF는 좌하단이 원점, y축 반전)
+            const pdfX = (x / pdfImage.clientWidth) * PDF_SIZE.width;
+            const pdfY = PDF_SIZE.height - (y / pdfImage.clientHeight) * PDF_SIZE.height;
+
+            mousePosSpan.textContent = `x: ${pdfX.toFixed(1)}, y: ${pdfY.toFixed(1)}`;
+        });
+
+        // 클릭하여 좌표 저장
+        imageWrapper.addEventListener('click', (e) => {
+            if (!pdfImage.naturalWidth || e.target === pdfImage && !pdfImage.src) return;
+
+            const rect = pdfImage.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // PDF 좌표로 변환
+            const pdfX = (x / pdfImage.clientWidth) * PDF_SIZE.width;
+            const pdfY = PDF_SIZE.height - (y / pdfImage.clientHeight) * PDF_SIZE.height;
+
+            // 필드 이름
+            let fieldName = fieldNameInput.value.trim();
+            if (!fieldName) {
+                fieldName = `field${markers[`page${currentPage}`].length + 1}`;
+            }
+
+            // 마커 추가
+            const marker = {
+                name: fieldName,
+                x: pdfX,
+                y: pdfY,
+                size: parseInt(fontSizeSelect.value),
+                screenX: x,
+                screenY: y
+            };
+
+            markers[`page${currentPage}`].push(marker);
+
+            // 다음 필드 이름 자동 증가
+            const match = fieldName.match(/^(.+?)(\d+)$/);
+            if (match) {
+                fieldNameInput.value = match[1] + (parseInt(match[2]) + 1);
+            } else {
+                fieldNameInput.value = '';
+            }
+
+            updateDisplay();
+        });
+
+        // 화면 업데이트
+        function updateDisplay() {
+            const pageMarkers = markers[`page${currentPage}`];
+
+            // 마커 표시
+            document.querySelectorAll('.marker').forEach(m => m.remove());
+
+            pageMarkers.forEach((marker, index) => {
+                const markerEl = document.createElement('div');
+                markerEl.className = 'marker';
+                markerEl.style.left = marker.screenX + 'px';
+                markerEl.style.top = marker.screenY + 'px';
+
+                const label = document.createElement('span');
+                label.className = 'marker-label';
+                label.textContent = marker.name;
+                markerEl.appendChild(label);
+
+                imageWrapper.appendChild(markerEl);
+            });
+
+            // 좌표 목록 업데이트
+            if (pageMarkers.length === 0) {
+                coordList.innerHTML = '<div style="color: #64748b; text-align: center; padding: 1rem;">이미지를 클릭하여 좌표를 추가하세요</div>';
+            } else {
+                coordList.innerHTML = pageMarkers.map((m, i) => `
+                    <div class="coord-item">
+                        <span class="name">${m.name}</span>
+                        <span class="coords">x:${m.x.toFixed(1)}, y:${m.y.toFixed(1)}</span>
+                        <span class="delete" onclick="deleteMarker(${i})">✕</span>
+                    </div>
+                `).join('');
+            }
+
+            // 마커 개수
+            const totalCount = markers.page1.length + markers.page2.length;
+            markerCountSpan.textContent = totalCount;
+
+            // 코드 생성
+            generateCode();
+        }
+
+        // 마커 삭제
+        function deleteMarker(index) {
+            markers[`page${currentPage}`].splice(index, 1);
+            updateDisplay();
+        }
+
+        // 모든 마커 삭제
+        function clearAllMarkers() {
+            if (confirm('모든 좌표를 삭제하시겠습니까?')) {
+                markers = { page1: [], page2: [] };
+                updateDisplay();
+            }
+        }
+
+        // 코드 생성
+        function generateCode() {
+            let code = `const PDF_COORDINATES = {\n`;
+
+            code += `    // 페이지 1: 적발 보고서\n`;
+            code += `    page1: {\n`;
+            markers.page1.forEach(m => {
+                code += `        '${m.name}': { x: ${m.x.toFixed(2)}, y: ${m.y.toFixed(2)}, size: ${m.size} },\n`;
+            });
+            code += `    },\n\n`;
+
+            code += `    // 페이지 2: 진술서\n`;
+            code += `    page2: {\n`;
+            markers.page2.forEach(m => {
+                code += `        '${m.name}': { x: ${m.x.toFixed(2)}, y: ${m.y.toFixed(2)}, size: ${m.size} },\n`;
+            });
+            code += `    }\n`;
+
+            code += `};\n`;
+
+            outputCode.textContent = code;
+        }
+
+        // 복사
+        function copyOutput() {
+            navigator.clipboard.writeText(outputCode.textContent).then(() => {
+                alert('좌표 코드가 클립보드에 복사되었습니다!');
+            });
+        }
+
+        // 초기화
+        generateCode();
+    </script>
+</body>
+
+</html>
