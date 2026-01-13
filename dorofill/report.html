@@ -37,12 +37,14 @@
                             200: '#bfdbfe',
                             300: '#93c5fd',
                             400: '#60a5fa',
-                            500: '#3b82f6',
-                            600: '#2563eb',
-                            700: '#1d4ed8',
-                            800: '#1e40af',
+                            500: '#2563eb',
+                            600: '#1d4ed8',
+                            700: '#1e40af',
+                            800: '#1e3a8a',
                             900: '#1e3a8a',
-                        }
+                        },
+                        success: '#10b981',
+                        warning: '#ef4444',
                     }
                 }
             }
@@ -50,65 +52,175 @@
     </script>
 </head>
 
-<body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 font-sans">
-    <!-- Header -->
-    <header class="fixed top-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-lg border-b border-slate-700/50">
-        <div class="max-w-lg mx-auto px-4 py-4">
-            <div class="flex items-center justify-between">
-                <a href="index.html" class="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
-                        </path>
-                    </svg>
-                    <span class="text-sm">돌아가기</span>
-                </a>
-                <h1 class="text-lg font-bold text-white">적발 보고서</h1>
-                <div class="w-16"></div>
-            </div>
+<body class="min-h-screen bg-gray-50 font-sans">
+    <!-- Fixed Header -->
+    <header class="header-fixed bg-white shadow-sm">
+        <div class="container flex items-center justify-between h-full">
+            <!-- Back Button -->
+            <a href="index.html"
+                class="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors min-w-[44px] min-h-[44px] justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                <span class="text-sm hidden sm:inline">돌아가기</span>
+            </a>
+
+            <!-- Title -->
+            <h1 class="text-lg font-bold text-gray-900">적발 보고서 작성</h1>
+
+            <!-- Save Button -->
+            <button type="button" id="btn-save"
+                class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-primary-500 hover:bg-primary-50 rounded-lg transition-colors min-w-[44px] min-h-[44px] justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4">
+                    </path>
+                </svg>
+                <span class="hidden sm:inline">저장</span>
+            </button>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="pt-20 pb-24 px-4">
-        <div class="max-w-lg mx-auto">
-            <!-- Page Title -->
-            <div class="text-center mb-8">
-                <div
-                    class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl shadow-lg shadow-blue-500/25 mb-4">
-                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                        </path>
-                    </svg>
-                </div>
-                <p class="text-slate-400 text-sm">운행제한 위반 차량 적발 보고서를 작성합니다</p>
-            </div>
+    <!-- Main Content - Scrollable Area -->
+    <main class="main-content">
+        <div class="container">
+            <form id="reportForm" novalidate>
 
-            <!-- Form Section (Placeholder) -->
-            <div class="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
-                <p class="text-center text-slate-400 py-8">
-                    📋 보고서 양식이 여기에 표시됩니다<br>
-                    <span class="text-sm text-slate-500">(추후 구현 예정)</span>
-                </p>
-            </div>
+                <!-- Section 1: 기본 정보 -->
+                <section class="bg-white rounded-lg shadow-md p-4 mb-4 animate-fade-in">
+                    <!-- Section Header -->
+                    <h2
+                        class="flex items-center gap-2 text-base font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-100">
+                        <span class="text-xl">📍</span>
+                        기본 정보
+                    </h2>
+
+                    <!-- 적발 일시 -->
+                    <div class="form-group">
+                        <label for="reportDatetime" class="form-label form-label-required">
+                            적발 일시
+                        </label>
+                        <input type="datetime-local" id="reportDatetime" name="reportDatetime" class="form-input w-full"
+                            required>
+                        <p class="text-xs text-gray-500 mt-1">위반 차량을 적발한 날짜와 시간</p>
+                    </div>
+
+                    <!-- 적발 위치 -->
+                    <div class="form-group mb-0">
+                        <label for="reportLocation" class="form-label form-label-required">
+                            적발 위치
+                        </label>
+                        <textarea id="reportLocation" name="reportLocation" class="form-input form-textarea w-full"
+                            rows="2" placeholder="국도 17호선 충북 청주시 서원구 현도면 죽암리" required></textarea>
+                        <p class="text-xs text-gray-500 mt-1">도로명 또는 상세 주소 입력</p>
+                    </div>
+                </section>
+
+                <!-- 추가 섹션들은 여기에 구현 예정 -->
+                <section class="bg-white rounded-lg shadow-md p-4 mb-4">
+                    <h2
+                        class="flex items-center gap-2 text-base font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-100">
+                        <span class="text-xl">🚛</span>
+                        차량 정보
+                    </h2>
+                    <p class="text-center text-gray-400 py-4 text-sm">
+                        (추후 구현 예정)
+                    </p>
+                </section>
+
+                <section class="bg-white rounded-lg shadow-md p-4 mb-4">
+                    <h2
+                        class="flex items-center gap-2 text-base font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-100">
+                        <span class="text-xl">⚖️</span>
+                        위반 내용
+                    </h2>
+                    <p class="text-center text-gray-400 py-4 text-sm">
+                        (추후 구현 예정)
+                    </p>
+                </section>
+
+            </form>
         </div>
     </main>
 
-    <!-- Fixed Bottom Button -->
-    <div class="fixed bottom-0 left-0 right-0 bg-slate-900/80 backdrop-blur-lg border-t border-slate-700/50 p-4">
-        <div class="max-w-lg mx-auto">
-            <button type="button" id="btn-generate-pdf"
-                class="w-full py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 transition-all duration-300 active:scale-[0.98]">
+    <!-- Fixed Footer - PDF Generate Button -->
+    <footer class="footer-fixed bg-white">
+        <div class="container">
+            <button type="button" id="btn-generate-pdf" class="btn btn-primary btn-block">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                </svg>
                 PDF 생성하기
             </button>
         </div>
-    </div>
+    </footer>
 
     <!-- Scripts -->
     <script src="js/app.js"></script>
     <script src="js/validator.js"></script>
     <script src="js/calculator.js"></script>
     <script src="js/pdf-handler.js"></script>
+
+    <!-- Page Specific Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set default datetime to current
+            const datetimeInput = document.getElementById('reportDatetime');
+            if (datetimeInput) {
+                const now = new Date();
+                // Format: YYYY-MM-DDTHH:MM
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                datetimeInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+            }
+
+            // Save button handler
+            const saveBtn = document.getElementById('btn-save');
+            if (saveBtn) {
+                saveBtn.addEventListener('click', () => {
+                    const formData = {
+                        reportDatetime: document.getElementById('reportDatetime')?.value,
+                        reportLocation: document.getElementById('reportLocation')?.value,
+                    };
+                    saveToStorage('report_draft', formData);
+                    showToast('임시 저장되었습니다', 'success');
+                });
+            }
+
+            // Load saved draft on page load
+            const savedDraft = loadFromStorage('report_draft');
+            if (savedDraft) {
+                if (savedDraft.reportDatetime) {
+                    document.getElementById('reportDatetime').value = savedDraft.reportDatetime;
+                }
+                if (savedDraft.reportLocation) {
+                    document.getElementById('reportLocation').value = savedDraft.reportLocation;
+                }
+            }
+
+            // PDF generate button handler
+            const pdfBtn = document.getElementById('btn-generate-pdf');
+            if (pdfBtn) {
+                pdfBtn.addEventListener('click', async () => {
+                    // Validate form
+                    const datetime = document.getElementById('reportDatetime')?.value;
+                    const location = document.getElementById('reportLocation')?.value;
+
+                    if (!datetime || !location) {
+                        showToast('필수 항목을 모두 입력해주세요', 'warning');
+                        return;
+                    }
+
+                    showToast('PDF 생성 기능은 추후 구현 예정입니다', 'info');
+                });
+            }
+        });
+    </script>
 </body>
 
 </html>
