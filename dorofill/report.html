@@ -211,7 +211,78 @@
                     </div>
                 </section>
 
-                <!-- Section 4: 위반 내용 (추후 구현) -->
+                <!-- Section 4: 차량규격 -->
+                <section class="bg-white rounded-lg shadow-md p-4 mb-4 animate-fade-in">
+                    <h2
+                        class="flex items-center gap-2 text-base font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-100">
+                        <span class="text-xl">📏</span>
+                        차량규격
+                    </h2>
+
+                    <!-- 테이블 헤더 -->
+                    <div class="grid grid-cols-4 gap-2 mb-2">
+                        <div class="text-xs font-medium text-gray-500 text-center py-2">구분</div>
+                        <div class="text-xs font-medium text-gray-500 text-center py-2">너비</div>
+                        <div class="text-xs font-medium text-gray-500 text-center py-2">높이</div>
+                        <div class="text-xs font-medium text-gray-500 text-center py-2">길이</div>
+                    </div>
+
+                    <!-- 측정결과 행 -->
+                    <div class="grid grid-cols-4 gap-2 mb-3">
+                        <div
+                            class="flex items-center justify-center text-sm font-medium text-gray-700 bg-gray-50 rounded-lg py-3">
+                            측정결과
+                        </div>
+                        <div class="relative">
+                            <input type="number" id="widthMeasured" name="widthMeasured"
+                                class="form-input w-full text-center pr-6" step="0.01" inputmode="decimal"
+                                placeholder="0.00">
+                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">m</span>
+                        </div>
+                        <div class="relative">
+                            <input type="number" id="heightMeasured" name="heightMeasured"
+                                class="form-input w-full text-center pr-6" step="0.01" inputmode="decimal"
+                                placeholder="0.00">
+                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">m</span>
+                        </div>
+                        <div class="relative">
+                            <input type="number" id="lengthMeasured" name="lengthMeasured"
+                                class="form-input w-full text-center pr-6" step="0.01" inputmode="decimal"
+                                placeholder="0.00">
+                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">m</span>
+                        </div>
+                    </div>
+
+                    <!-- 위반내역 행 -->
+                    <div class="grid grid-cols-4 gap-2">
+                        <div
+                            class="flex items-center justify-center text-sm font-medium text-warning bg-red-50 rounded-lg py-3">
+                            위반내역
+                        </div>
+                        <div class="relative">
+                            <input type="number" id="widthViolation" name="widthViolation"
+                                class="form-input w-full text-center pr-6 bg-red-50 border-red-200 focus:border-red-400"
+                                step="0.01" inputmode="decimal" placeholder="0.00">
+                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">m</span>
+                        </div>
+                        <div class="relative">
+                            <input type="number" id="heightViolation" name="heightViolation"
+                                class="form-input w-full text-center pr-6 bg-red-50 border-red-200 focus:border-red-400"
+                                step="0.01" inputmode="decimal" placeholder="0.00">
+                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">m</span>
+                        </div>
+                        <div class="relative">
+                            <input type="number" id="lengthViolation" name="lengthViolation"
+                                class="form-input w-full text-center pr-6 bg-red-50 border-red-200 focus:border-red-400"
+                                step="0.01" inputmode="decimal" placeholder="0.00">
+                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">m</span>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-gray-500 mt-3">※ 초과된 수치만 위반내역에 입력하세요</p>
+                </section>
+
+                <!-- Section 5: 위반 내용 (추후 구현) -->
                 <section class="bg-white rounded-lg shadow-md p-4 mb-4">
                     <h2
                         class="flex items-center gap-2 text-base font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-100">
@@ -307,7 +378,9 @@
             const formFields = [
                 'reportDatetime', 'reportLocation',
                 'driverName', 'driverAddress', 'phoneFixed', 'phoneMobile',
-                'vehicleType', 'plateNumber', 'route', 'cargo'
+                'vehicleType', 'plateNumber', 'route', 'cargo',
+                'widthMeasured', 'heightMeasured', 'lengthMeasured',
+                'widthViolation', 'heightViolation', 'lengthViolation'
             ];
 
             // === Save Button Handler ===
