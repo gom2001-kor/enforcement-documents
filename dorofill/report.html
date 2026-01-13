@@ -401,6 +401,50 @@
                             class="hidden mt-2 p-2 bg-red-100 rounded text-xs font-medium text-warning">
                             ⚠️ 기준 초과 항목이 있습니다!
                         </div>
+                </section>
+
+                <!-- Section 6: 작성자 정보 -->
+                <section class="bg-white rounded-lg shadow-md p-4 mb-4 animate-fade-in">
+                    <h2
+                        class="flex items-center gap-2 text-base font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-100">
+                        <span class="text-xl">✍️</span>
+                        작성자 정보
+                    </h2>
+
+                    <!-- 년월일 -->
+                    <div class="form-group">
+                        <label for="authorDate" class="form-label form-label-required">
+                            년월일
+                        </label>
+                        <input type="date" id="authorDate" name="authorDate" class="form-input w-full" required>
+                    </div>
+
+                    <!-- 소속 & 직급 -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label for="authorOffice" class="form-label form-label-required">
+                                소속
+                            </label>
+                            <input type="text" id="authorOffice" name="authorOffice" class="form-input w-full"
+                                value="보은국토관리사무소" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="authorPosition" class="form-label form-label-required">
+                                직급
+                            </label>
+                            <input type="text" id="authorPosition" name="authorPosition" class="form-input w-full"
+                                value="운행제한단속원" required>
+                        </div>
+                    </div>
+
+                    <!-- 성명 -->
+                    <div class="form-group mb-0">
+                        <label for="authorName" class="form-label form-label-required">
+                            성명
+                        </label>
+                        <input type="text" id="authorName" name="authorName" class="form-input w-full" placeholder="이용준"
+                            required>
                     </div>
                 </section>
 
@@ -408,17 +452,32 @@
         </div>
     </main>
 
-    <!-- Fixed Footer - PDF Generate Button -->
+    <!-- Fixed Footer - Two Buttons -->
     <footer class="footer-fixed bg-white">
         <div class="container">
-            <button type="button" id="btn-generate-pdf" class="btn btn-primary btn-block">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                    </path>
-                </svg>
-                PDF 생성하기
-            </button>
+            <div class="flex gap-3">
+                <!-- 임시 저장 버튼 -->
+                <button type="button" id="btn-save"
+                    class="flex-1 btn btn-outline flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4">
+                        </path>
+                    </svg>
+                    임시 저장
+                </button>
+
+                <!-- PDF 생성 버튼 -->
+                <button type="button" id="btn-generate-pdf"
+                    class="flex-[2] btn btn-primary flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                        </path>
+                    </svg>
+                    PDF 생성하기
+                </button>
+            </div>
         </div>
     </footer>
 
@@ -484,6 +543,16 @@
                 datetimeInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
             }
 
+            // === Set default author date to today ===
+            const authorDateInput = document.getElementById('authorDate');
+            if (authorDateInput && !authorDateInput.value) {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                authorDateInput.value = `${year}-${month}-${day}`;
+            }
+
             // === Form Fields List ===
             const formFields = [
                 'reportDatetime', 'reportLocation',
@@ -494,7 +563,8 @@
                 'axle1Measured', 'axle2Measured', 'axle3Measured', 'axle4Measured',
                 'axle5Measured', 'axle6Measured', 'axle7Measured', 'axle8Measured',
                 'axle1Violation', 'axle2Violation', 'axle3Violation', 'axle4Violation',
-                'axle5Violation', 'axle6Violation', 'axle7Violation', 'axle8Violation'
+                'axle5Violation', 'axle6Violation', 'axle7Violation', 'axle8Violation',
+                'authorDate', 'authorOffice', 'authorPosition', 'authorName'
             ];
 
             // === Save Button Handler ===
@@ -530,7 +600,8 @@
                     const requiredFields = [
                         'reportDatetime', 'reportLocation',
                         'driverName', 'driverAddress', 'phoneMobile',
-                        'vehicleType', 'plateNumber', 'route', 'cargo'
+                        'vehicleType', 'plateNumber', 'route', 'cargo',
+                        'authorName'
                     ];
 
                     let isValid = true;
@@ -653,6 +724,28 @@
 
             // 초기 로드 시 계산 실행
             checkViolations();
+
+            // ==========================================================================
+            // 자동 저장 기능 (5초마다)
+            // ==========================================================================
+
+            function saveFormData() {
+                const formData = {};
+                formFields.forEach(field => {
+                    const el = document.getElementById(field);
+                    if (el) formData[field] = el.value;
+                });
+                saveToStorage('report_draft', formData);
+            }
+
+            // 5초마다 자동 저장
+            setInterval(() => {
+                saveFormData();
+                console.log('자동 저장 완료:', new Date().toLocaleTimeString());
+            }, 5000);
+
+            // 페이지 離開 시 저장
+            window.addEventListener('beforeunload', saveFormData);
         });
     </script>
 </body>
