@@ -116,18 +116,102 @@
                     </div>
                 </section>
 
-                <!-- 추가 섹션들은 여기에 구현 예정 -->
-                <section class="bg-white rounded-lg shadow-md p-4 mb-4">
+                <!-- Section 2: 운전자 정보 -->
+                <section class="bg-white rounded-lg shadow-md p-4 mb-4 animate-fade-in">
+                    <h2
+                        class="flex items-center gap-2 text-base font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-100">
+                        <span class="text-xl">👤</span>
+                        운전자 정보
+                    </h2>
+
+                    <!-- 성명 -->
+                    <div class="form-group">
+                        <label for="driverName" class="form-label form-label-required">
+                            성명
+                        </label>
+                        <input type="text" id="driverName" name="driverName" class="form-input w-full" placeholder="홍길동"
+                            required>
+                    </div>
+
+                    <!-- 주소 -->
+                    <div class="form-group">
+                        <label for="driverAddress" class="form-label form-label-required">
+                            주소
+                        </label>
+                        <input type="text" id="driverAddress" name="driverAddress" class="form-input w-full"
+                            placeholder="서울특별시 강남구 테헤란로 123" required>
+                    </div>
+
+                    <!-- 전화번호 그룹 -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- 일반전화번호 -->
+                        <div class="form-group mb-0">
+                            <label for="phoneFixed" class="form-label">
+                                일반전화번호
+                            </label>
+                            <input type="tel" id="phoneFixed" name="phoneFixed" class="form-input w-full"
+                                placeholder="043-123-4567" maxlength="13">
+                        </div>
+
+                        <!-- 휴대전화번호 -->
+                        <div class="form-group mb-0">
+                            <label for="phoneMobile" class="form-label form-label-required">
+                                휴대전화번호
+                            </label>
+                            <input type="tel" id="phoneMobile" name="phoneMobile" class="form-input w-full"
+                                placeholder="010-1234-5678" maxlength="13" required>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section 3: 차량 정보 -->
+                <section class="bg-white rounded-lg shadow-md p-4 mb-4 animate-fade-in">
                     <h2
                         class="flex items-center gap-2 text-base font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-100">
                         <span class="text-xl">🚛</span>
                         차량 정보
                     </h2>
-                    <p class="text-center text-gray-400 py-4 text-sm">
-                        (추후 구현 예정)
-                    </p>
+
+                    <!-- 차종 & 등록번호 -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- 차종 -->
+                        <div class="form-group">
+                            <label for="vehicleType" class="form-label form-label-required">
+                                차종
+                            </label>
+                            <input type="text" id="vehicleType" name="vehicleType" class="form-input w-full"
+                                placeholder="5톤 카고" required>
+                        </div>
+
+                        <!-- 등록번호 -->
+                        <div class="form-group">
+                            <label for="plateNumber" class="form-label form-label-required">
+                                등록번호
+                            </label>
+                            <input type="text" id="plateNumber" name="plateNumber" class="form-input w-full uppercase"
+                                placeholder="81소5678" required>
+                        </div>
+                    </div>
+
+                    <!-- 운행경로 -->
+                    <div class="form-group">
+                        <label for="route" class="form-label form-label-required">
+                            운행경로
+                        </label>
+                        <input type="text" id="route" name="route" class="form-input w-full" placeholder="청주방면 - 달계리"
+                            required>
+                    </div>
+
+                    <!-- 적재물 -->
+                    <div class="form-group mb-0">
+                        <label for="cargo" class="form-label form-label-required">
+                            적재물
+                        </label>
+                        <input type="text" id="cargo" name="cargo" class="form-input w-full" placeholder="목재" required>
+                    </div>
                 </section>
 
+                <!-- Section 4: 위반 내용 (추후 구현) -->
                 <section class="bg-white rounded-lg shadow-md p-4 mb-4">
                     <h2
                         class="flex items-center gap-2 text-base font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-100">
@@ -166,11 +250,51 @@
     <!-- Page Specific Script -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Set default datetime to current
+            // === Phone Number Auto-Hyphen Formatter ===
+            function formatPhoneNumber(value) {
+                // Remove all non-digits
+                const numbers = value.replace(/\D/g, '');
+
+                // Format based on length
+                if (numbers.length <= 3) {
+                    return numbers;
+                } else if (numbers.length <= 6) {
+                    return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+                } else if (numbers.length <= 10) {
+                    // 010-123-4567 or 02-1234-5678
+                    if (numbers.startsWith('02')) {
+                        return `${numbers.slice(0, 2)}-${numbers.slice(2, 6)}-${numbers.slice(6)}`;
+                    }
+                    return `${numbers.slice(0, 3)}-${numbers.slice(3, 6)}-${numbers.slice(6)}`;
+                } else {
+                    // 010-1234-5678
+                    if (numbers.startsWith('02')) {
+                        return `${numbers.slice(0, 2)}-${numbers.slice(2, 6)}-${numbers.slice(6, 10)}`;
+                    }
+                    return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
+                }
+            }
+
+            // Apply phone formatter to phone inputs
+            const phoneInputs = document.querySelectorAll('input[type="tel"]');
+            phoneInputs.forEach(input => {
+                input.addEventListener('input', (e) => {
+                    e.target.value = formatPhoneNumber(e.target.value);
+                });
+            });
+
+            // === Plate Number Uppercase Converter ===
+            const plateInput = document.getElementById('plateNumber');
+            if (plateInput) {
+                plateInput.addEventListener('input', (e) => {
+                    e.target.value = e.target.value.toUpperCase();
+                });
+            }
+
+            // === Set default datetime to current ===
             const datetimeInput = document.getElementById('reportDatetime');
-            if (datetimeInput) {
+            if (datetimeInput && !datetimeInput.value) {
                 const now = new Date();
-                // Format: YYYY-MM-DDTHH:MM
                 const year = now.getFullYear();
                 const month = String(now.getMonth() + 1).padStart(2, '0');
                 const day = String(now.getDate()).padStart(2, '0');
@@ -179,39 +303,61 @@
                 datetimeInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
             }
 
-            // Save button handler
+            // === Form Fields List ===
+            const formFields = [
+                'reportDatetime', 'reportLocation',
+                'driverName', 'driverAddress', 'phoneFixed', 'phoneMobile',
+                'vehicleType', 'plateNumber', 'route', 'cargo'
+            ];
+
+            // === Save Button Handler ===
             const saveBtn = document.getElementById('btn-save');
             if (saveBtn) {
                 saveBtn.addEventListener('click', () => {
-                    const formData = {
-                        reportDatetime: document.getElementById('reportDatetime')?.value,
-                        reportLocation: document.getElementById('reportLocation')?.value,
-                    };
+                    const formData = {};
+                    formFields.forEach(field => {
+                        const el = document.getElementById(field);
+                        if (el) formData[field] = el.value;
+                    });
                     saveToStorage('report_draft', formData);
                     showToast('임시 저장되었습니다', 'success');
                 });
             }
 
-            // Load saved draft on page load
+            // === Load Saved Draft ===
             const savedDraft = loadFromStorage('report_draft');
             if (savedDraft) {
-                if (savedDraft.reportDatetime) {
-                    document.getElementById('reportDatetime').value = savedDraft.reportDatetime;
-                }
-                if (savedDraft.reportLocation) {
-                    document.getElementById('reportLocation').value = savedDraft.reportLocation;
-                }
+                formFields.forEach(field => {
+                    const el = document.getElementById(field);
+                    if (el && savedDraft[field]) {
+                        el.value = savedDraft[field];
+                    }
+                });
             }
 
-            // PDF generate button handler
+            // === PDF Generate Button Handler ===
             const pdfBtn = document.getElementById('btn-generate-pdf');
             if (pdfBtn) {
                 pdfBtn.addEventListener('click', async () => {
-                    // Validate form
-                    const datetime = document.getElementById('reportDatetime')?.value;
-                    const location = document.getElementById('reportLocation')?.value;
+                    // Validate required fields
+                    const requiredFields = [
+                        'reportDatetime', 'reportLocation',
+                        'driverName', 'driverAddress', 'phoneMobile',
+                        'vehicleType', 'plateNumber', 'route', 'cargo'
+                    ];
 
-                    if (!datetime || !location) {
+                    let isValid = true;
+                    requiredFields.forEach(field => {
+                        const el = document.getElementById(field);
+                        if (el && !el.value.trim()) {
+                            el.classList.add('form-input-error');
+                            isValid = false;
+                        } else if (el) {
+                            el.classList.remove('form-input-error');
+                        }
+                    });
+
+                    if (!isValid) {
                         showToast('필수 항목을 모두 입력해주세요', 'warning');
                         return;
                     }
