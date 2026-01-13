@@ -4,16 +4,62 @@
  */
 
 /* ==========================================================================
-   Root Variables
+   CSS Variables (색상 팔레트)
    ========================================================================== */
 :root {
-    /* Colors */
-    --color-primary: #3b82f6;
-    --color-primary-dark: #2563eb;
-    --color-secondary: #f97316;
-    --color-secondary-dark: #ea580c;
-    
+    /* Primary Colors */
+    --color-primary: #2563eb;
+    --color-primary-hover: #1d4ed8;
+    --color-primary-light: #dbeafe;
+
+    /* Status Colors */
+    --color-success: #10b981;
+    --color-success-light: #d1fae5;
+    --color-warning: #ef4444;
+    --color-warning-light: #fee2e2;
+
+    /* Background & Surface */
+    --color-bg: #f9fafb;
+    --color-surface: #ffffff;
+    --color-surface-dark: #1e293b;
+
+    /* Text Colors */
+    --color-text-primary: #111827;
+    --color-text-secondary: #6b7280;
+    --color-text-light: #f9fafb;
+
+    /* Border Colors */
+    --color-border: #d1d5db;
+    --color-border-focus: #2563eb;
+    --color-border-error: #ef4444;
+
     /* Spacing */
+    --spacing-base: 1rem;
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+
+    /* Sizes */
+    --min-touch-target: 44px;
+    --input-height: 48px;
+    --button-height: 52px;
+    --header-height: 60px;
+    --footer-height: 80px;
+
+    /* Border Radius */
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+    /* Safe Area */
     --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -22,6 +68,7 @@
    ========================================================================== */
 * {
     -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
 }
 
 html {
@@ -30,184 +77,324 @@ html {
 }
 
 body {
+    font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overscroll-behavior: none;
+    background-color: var(--color-bg);
+    color: var(--color-text-primary);
+    line-height: 1.5;
 }
 
-/* Safe area padding for iOS */
-.safe-area-bottom {
-    padding-bottom: calc(1rem + var(--safe-area-inset-bottom));
+/* ==========================================================================
+   Layout - Fixed Header & Footer
+   ========================================================================== */
+
+/* Fixed Header */
+.header-fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-height);
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    padding: 0 var(--spacing-md);
+}
+
+/* Fixed Footer */
+.footer-fixed {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--footer-height);
+    background-color: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    padding: 0 var(--spacing-md);
+    padding-bottom: var(--safe-area-inset-bottom);
+}
+
+/* Main Content - Scrollable Area */
+.main-content {
+    padding-top: calc(var(--header-height) + var(--spacing-md));
+    padding-bottom: calc(var(--footer-height) + var(--spacing-md));
+    padding-left: var(--spacing-md);
+    padding-right: var(--spacing-md);
+    min-height: 100vh;
+}
+
+/* Container */
+.container {
+    max-width: 640px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* ==========================================================================
+   Card Component
+   ========================================================================== */
+.card {
+    background-color: var(--color-surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+}
+
+.card-header {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.card-body {
+    padding: var(--spacing-sm) 0;
+}
+
+/* Dark theme card */
+.card-dark {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(30, 41, 59, 0.4) 100%);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(71, 85, 105, 0.5);
 }
 
 /* ==========================================================================
    Form Styles
    ========================================================================== */
 
-/* Input focus states */
-input:focus,
-textarea:focus,
-select:focus {
-    outline: none;
+/* Form Group */
+.form-group {
+    margin-bottom: var(--spacing-md);
 }
 
-/* Custom input styling */
-.form-input {
-    width: 100%;
-    padding: 0.875rem 1rem;
-    background-color: rgba(30, 41, 59, 0.5);
-    border: 1px solid rgba(71, 85, 105, 0.5);
-    border-radius: 0.75rem;
-    color: white;
-    font-size: 1rem;
-    transition: all 0.2s ease;
-}
-
-.form-input:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.form-input::placeholder {
-    color: rgba(148, 163, 184, 0.6);
-}
-
-/* Select styling */
-.form-select {
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.75rem center;
-    background-size: 1.25rem;
-    padding-right: 2.5rem;
-}
-
-/* Label styling */
+/* Label */
 .form-label {
     display: block;
     font-size: 0.875rem;
     font-weight: 500;
-    color: rgba(226, 232, 240, 0.9);
-    margin-bottom: 0.5rem;
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-sm);
 }
 
 .form-label-required::after {
     content: ' *';
-    color: #ef4444;
+    color: var(--color-warning);
 }
 
-/* Form group */
-.form-group {
-    margin-bottom: 1.25rem;
+/* Input Field - Base */
+.form-input {
+    width: 100%;
+    height: var(--input-height);
+    padding: 0 var(--spacing-md);
+    font-size: 1rem;
+    color: var(--color-text-primary);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    min-height: var(--min-touch-target);
+}
+
+.form-input::placeholder {
+    color: var(--color-text-secondary);
+}
+
+/* Input - Focus State */
+.form-input:focus {
+    outline: none;
+    border-color: var(--color-border-focus);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Input - Error State */
+.form-input-error,
+.form-input.error {
+    border-color: var(--color-border-error);
+    background-color: var(--color-warning-light);
+}
+
+.form-input-error:focus,
+.form-input.error:focus {
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* Textarea */
+.form-textarea {
+    min-height: calc(var(--input-height) * 2);
+    padding: var(--spacing-md);
+    resize: vertical;
+}
+
+/* Select */
+.form-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1.25rem;
+    padding-right: 2.5rem;
+    cursor: pointer;
+}
+
+/* Error Message */
+.form-error-message {
+    font-size: 0.75rem;
+    color: var(--color-warning);
+    margin-top: var(--spacing-xs);
 }
 
 /* ==========================================================================
    Button Styles
    ========================================================================== */
 
-/* Primary button */
-.btn-primary {
-    display: flex;
+/* Button Base */
+.btn {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    padding: 1rem 1.5rem;
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-    color: white;
+    height: var(--button-height);
+    min-height: var(--min-touch-target);
+    padding: 0 var(--spacing-lg);
+    font-size: 1rem;
     font-weight: 600;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-lg);
     border: none;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.25);
+    text-decoration: none;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+/* Primary Button */
+.btn-primary {
+    background-color: var(--color-primary);
+    color: white;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
 }
 
 .btn-primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
+    background-color: var(--color-primary-hover);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
 }
 
-.btn-primary:active {
-    transform: scale(0.98);
-}
-
-/* Secondary button */
-.btn-secondary {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 1rem 1.5rem;
-    background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-secondary-dark) 100%);
+/* Success Button */
+.btn-success {
+    background-color: var(--color-success);
     color: white;
-    font-weight: 600;
-    border-radius: 0.75rem;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.25);
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
 }
 
-.btn-secondary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.35);
+.btn-success:hover {
+    background-color: #059669;
 }
 
-.btn-secondary:active {
-    transform: scale(0.98);
+/* Warning/Danger Button */
+.btn-danger {
+    background-color: var(--color-warning);
+    color: white;
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.25);
 }
 
-/* Outline button */
+.btn-danger:hover {
+    background-color: #dc2626;
+}
+
+/* Outline Button */
 .btn-outline {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 1rem 1.5rem;
-    background: transparent;
-    color: rgba(226, 232, 240, 0.9);
-    font-weight: 500;
-    border-radius: 0.75rem;
-    border: 1px solid rgba(71, 85, 105, 0.5);
-    cursor: pointer;
-    transition: all 0.2s ease;
+    background-color: transparent;
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
 }
 
 .btn-outline:hover {
-    background: rgba(30, 41, 59, 0.5);
-    border-color: rgba(71, 85, 105, 0.8);
+    background-color: var(--color-bg);
+    border-color: var(--color-text-secondary);
+}
+
+/* Full Width Button */
+.btn-block {
+    width: 100%;
+}
+
+/* Disabled Button */
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
 }
 
 /* ==========================================================================
-   Card Styles
+   Violation Warning Styles (위반 강조)
    ========================================================================== */
-.card {
-    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(30, 41, 59, 0.4) 100%);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(71, 85, 105, 0.5);
-    border-radius: 1rem;
-    padding: 1.5rem;
+.violation-warning {
+    font-weight: bold;
+    color: var(--color-warning);
+    background-color: var(--color-warning-light);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
 }
 
-.card-hover {
-    transition: all 0.3s ease;
+.violation-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-warning);
+    background-color: var(--color-warning-light);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: var(--radius-md);
 }
 
-.card-hover:hover {
-    border-color: rgba(59, 130, 246, 0.5);
-    box-shadow: 0 8px 30px rgba(59, 130, 246, 0.1);
+.violation-text {
+    color: var(--color-warning);
+    font-weight: 600;
+}
+
+/* Violation Card */
+.card-violation {
+    border-left: 4px solid var(--color-warning);
+    background-color: var(--color-warning-light);
+}
+
+/* ==========================================================================
+   Success Styles
+   ========================================================================== */
+.success-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-success);
+    background-color: var(--color-success-light);
+    border-radius: var(--radius-md);
 }
 
 /* ==========================================================================
    Animation Utilities
    ========================================================================== */
-
-/* Fade in animation */
 @keyframes fadeIn {
     from {
         opacity: 0;
         transform: translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -218,11 +405,13 @@ select:focus {
     animation: fadeIn 0.3s ease forwards;
 }
 
-/* Pulse animation for loading */
 @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 1;
     }
+
     50% {
         opacity: 0.5;
     }
@@ -232,11 +421,11 @@ select:focus {
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Spin animation */
 @keyframes spin {
     from {
         transform: rotate(0deg);
     }
+
     to {
         transform: rotate(360deg);
     }
@@ -246,9 +435,63 @@ select:focus {
     animation: spin 1s linear infinite;
 }
 
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-5px);
+    }
+
+    75% {
+        transform: translateX(5px);
+    }
+}
+
+.animate-shake {
+    animation: shake 0.3s ease;
+}
+
 /* ==========================================================================
    Utility Classes
    ========================================================================== */
+
+/* Text */
+.text-primary {
+    color: var(--color-primary);
+}
+
+.text-success {
+    color: var(--color-success);
+}
+
+.text-warning {
+    color: var(--color-warning);
+}
+
+.text-secondary {
+    color: var(--color-text-secondary);
+}
+
+/* Background */
+.bg-primary {
+    background-color: var(--color-primary);
+}
+
+.bg-success {
+    background-color: var(--color-success);
+}
+
+.bg-warning {
+    background-color: var(--color-warning);
+}
+
+.bg-light {
+    background-color: var(--color-bg);
+}
 
 /* Hide scrollbar */
 .hide-scrollbar {
@@ -260,33 +503,43 @@ select:focus {
     display: none;
 }
 
-/* Glass effect */
-.glass {
-    background: rgba(30, 41, 59, 0.6);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+/* Safe area padding */
+.safe-area-bottom {
+    padding-bottom: calc(var(--spacing-md) + var(--safe-area-inset-bottom));
 }
 
-/* Gradient text */
-.gradient-text {
-    background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+/* Visibility */
+.hidden {
+    display: none !important;
+}
+
+.visible {
+    display: block !important;
 }
 
 /* ==========================================================================
-   Responsive Adjustments
+   Responsive - Mobile Optimizations
    ========================================================================== */
+
+/* Prevent zoom on input focus (iOS) */
 @media (max-width: 375px) {
-    .form-input {
-        font-size: 16px; /* Prevent zoom on iOS */
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+        font-size: 16px;
     }
 }
 
-@media (min-width: 768px) {
-    .form-input {
-        padding: 1rem 1.25rem;
+/* Larger touch targets on mobile */
+@media (max-width: 640px) {
+    .btn {
+        min-height: var(--min-touch-target);
+    }
+
+    .form-input,
+    .form-select {
+        min-height: var(--min-touch-target);
     }
 }
 
@@ -296,5 +549,14 @@ select:focus {
 @media print {
     .no-print {
         display: none !important;
+    }
+
+    .header-fixed,
+    .footer-fixed {
+        position: static;
+    }
+
+    .main-content {
+        padding: 0;
     }
 }
