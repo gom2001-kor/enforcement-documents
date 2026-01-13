@@ -630,38 +630,34 @@
                     templateInput.click();
                 });
             }
-            
+
             // === PDF Template File Handler ===
             const templateInput = document.getElementById('pdfTemplateInput');
             if (templateInput) {
                 templateInput.addEventListener('change', async (e) => {
                     const file = e.target.files[0];
                     if (!file) return;
-                    
+
                     try {
-                        showToast('PDF 생성 중...', 'info');
-                        
                         // 폼 데이터 수집
                         const formData = {};
                         formFields.forEach(field => {
                             const el = document.getElementById(field);
                             if (el) formData[field] = el.value;
                         });
-                        
-                        // PDF 생성
-                        const pdfDoc = await fillReportPdf(formData, file);
-                        
-                        // 다운로드
-                        await downloadPdf(pdfDoc, '적발보고서');
-                        
+
+                        // 새 메인 함수 호출 (로딩/토스트 내장)
+                        await generateReportPdf(file, formData);
+
                     } catch (error) {
                         console.error('PDF 생성 실패:', error);
-                        showToast('PDF 생성에 실패했습니다: ' + error.message, 'error');
+                        // 오류는 generateReportPdf 내부에서 처리됨
                     }
-                    
+
                     // 파일 입력 초기화 (같은 파일 다시 선택 가능)
                     templateInput.value = '';
                 });
+            }
 
             // ==========================================================================
             // 차량중량 자동 계산 및 위반 기준 체크
