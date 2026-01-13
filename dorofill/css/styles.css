@@ -1,0 +1,300 @@
+/**
+ * DoroFill - Custom Styles
+ * 운행제한 위반 적발 서류 PDF 자동 작성 시스템
+ */
+
+/* ==========================================================================
+   Root Variables
+   ========================================================================== */
+:root {
+    /* Colors */
+    --color-primary: #3b82f6;
+    --color-primary-dark: #2563eb;
+    --color-secondary: #f97316;
+    --color-secondary-dark: #ea580c;
+    
+    /* Spacing */
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ==========================================================================
+   Base Styles
+   ========================================================================== */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior: none;
+}
+
+/* Safe area padding for iOS */
+.safe-area-bottom {
+    padding-bottom: calc(1rem + var(--safe-area-inset-bottom));
+}
+
+/* ==========================================================================
+   Form Styles
+   ========================================================================== */
+
+/* Input focus states */
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+}
+
+/* Custom input styling */
+.form-input {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background-color: rgba(30, 41, 59, 0.5);
+    border: 1px solid rgba(71, 85, 105, 0.5);
+    border-radius: 0.75rem;
+    color: white;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.form-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-input::placeholder {
+    color: rgba(148, 163, 184, 0.6);
+}
+
+/* Select styling */
+.form-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1.25rem;
+    padding-right: 2.5rem;
+}
+
+/* Label styling */
+.form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgba(226, 232, 240, 0.9);
+    margin-bottom: 0.5rem;
+}
+
+.form-label-required::after {
+    content: ' *';
+    color: #ef4444;
+}
+
+/* Form group */
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+/* ==========================================================================
+   Button Styles
+   ========================================================================== */
+
+/* Primary button */
+.btn-primary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    color: white;
+    font-weight: 600;
+    border-radius: 0.75rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.25);
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
+}
+
+.btn-primary:active {
+    transform: scale(0.98);
+}
+
+/* Secondary button */
+.btn-secondary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-secondary-dark) 100%);
+    color: white;
+    font-weight: 600;
+    border-radius: 0.75rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.25);
+}
+
+.btn-secondary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.35);
+}
+
+.btn-secondary:active {
+    transform: scale(0.98);
+}
+
+/* Outline button */
+.btn-outline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 1rem 1.5rem;
+    background: transparent;
+    color: rgba(226, 232, 240, 0.9);
+    font-weight: 500;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(71, 85, 105, 0.5);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-outline:hover {
+    background: rgba(30, 41, 59, 0.5);
+    border-color: rgba(71, 85, 105, 0.8);
+}
+
+/* ==========================================================================
+   Card Styles
+   ========================================================================== */
+.card {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(30, 41, 59, 0.4) 100%);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(71, 85, 105, 0.5);
+    border-radius: 1rem;
+    padding: 1.5rem;
+}
+
+.card-hover {
+    transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+    border-color: rgba(59, 130, 246, 0.5);
+    box-shadow: 0 8px 30px rgba(59, 130, 246, 0.1);
+}
+
+/* ==========================================================================
+   Animation Utilities
+   ========================================================================== */
+
+/* Fade in animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease forwards;
+}
+
+/* Pulse animation for loading */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Spin animation */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+
+/* Hide scrollbar */
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Glass effect */
+.glass {
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+/* Gradient text */
+.gradient-text {
+    background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
+@media (max-width: 375px) {
+    .form-input {
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+}
+
+@media (min-width: 768px) {
+    .form-input {
+        padding: 1rem 1.25rem;
+    }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+}

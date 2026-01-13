@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="DoroFill - 운행제한 위반 적발 보고서 작성">
+    <title>적발 보고서 - DoroFill</title>
+
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- pdf-lib CDN -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+    <!-- Google Fonts - Noto Sans KR -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Noto Sans KR', 'system-ui', '-apple-system', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 font-sans">
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-lg border-b border-slate-700/50">
+        <div class="max-w-lg mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <a href="index.html" class="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
+                        </path>
+                    </svg>
+                    <span class="text-sm">돌아가기</span>
+                </a>
+                <h1 class="text-lg font-bold text-white">적발 보고서</h1>
+                <div class="w-16"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="pt-20 pb-24 px-4">
+        <div class="max-w-lg mx-auto">
+            <!-- Page Title -->
+            <div class="text-center mb-8">
+                <div
+                    class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl shadow-lg shadow-blue-500/25 mb-4">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                        </path>
+                    </svg>
+                </div>
+                <p class="text-slate-400 text-sm">운행제한 위반 차량 적발 보고서를 작성합니다</p>
+            </div>
+
+            <!-- Form Section (Placeholder) -->
+            <div class="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+                <p class="text-center text-slate-400 py-8">
+                    📋 보고서 양식이 여기에 표시됩니다<br>
+                    <span class="text-sm text-slate-500">(추후 구현 예정)</span>
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Fixed Bottom Button -->
+    <div class="fixed bottom-0 left-0 right-0 bg-slate-900/80 backdrop-blur-lg border-t border-slate-700/50 p-4">
+        <div class="max-w-lg mx-auto">
+            <button type="button" id="btn-generate-pdf"
+                class="w-full py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 transition-all duration-300 active:scale-[0.98]">
+                PDF 생성하기
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/app.js"></script>
+    <script src="js/validator.js"></script>
+    <script src="js/calculator.js"></script>
+    <script src="js/pdf-handler.js"></script>
+</body>
+
+</html>
