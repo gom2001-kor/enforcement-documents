@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF 필드 분석기 - DoroFill</title>
+
+    <!-- pdf-lib CDN -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 1.75rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.25rem;
+            color: #1e3a8a;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .file-input-wrapper {
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .file-input-wrapper:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .file-input-wrapper input {
+            display: none;
+        }
+
+        .file-input-wrapper label {
+            cursor: pointer;
+            color: #64748b;
+        }
+
+        .file-input-wrapper .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #1d4ed8;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #output {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 12px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        #output:empty::before {
+            content: "PDF 파일을 선택하면 분석 결과가 여기에 표시됩니다.";
+            color: #64748b;
+        }
+
+        .highlight {
+            color: #fbbf24;
+        }
+
+        .success {
+            color: #34d399;
+        }
+
+        .error {
+            color: #f87171;
+        }
+
+        .info {
+            color: #60a5fa;
+        }
+
+        .copy-btn {
+            margin-top: 1rem;
+            background: #10b981;
+        }
+
+        .copy-btn:hover {
+            background: #059669;
+        }
+
+        #fileName {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background: #f1f5f9;
+            border-radius: 8px;
+            color: #334155;
+            font-size: 0.875rem;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
+        .status.loading {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .status.complete {
+            background: #d1fae5;
+            color: #059669;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📄 PDF 폼 필드 분석기</h1>
+
+        <!-- 파일 선택 카드 -->
+        <div class="card">
+            <h2>1. PDF 파일 선택</h2>
+            <div class="file-input-wrapper" onclick="document.getElementById('pdfFile').click()">
+                <div class="icon">📁</div>
+                <label for="pdfFile">
+                    <strong>클릭하여 PDF 파일 선택</strong><br>
+                    <small>또는 여기로 파일을 드래그하세요</small>
+                </label>
+                <input type="file" id="pdfFile" accept=".pdf" onchange="handleFileSelect(event)">
+            </div>
+            <div id="fileName" style="display: none;"></div>
+        </div>
+
+        <!-- 분석 버튼 카드 -->
+        <div class="card">
+            <h2>2. 분석 실행 <span id="status"></span></h2>
+            <button class="btn" id="analyzeBtn" onclick="analyzePdf()" disabled>
+                🔍 PDF 분석하기
+            </button>
+        </div>
+
+        <!-- 결과 출력 카드 -->
+        <div class="card">
+            <h2>3. 분석 결과</h2>
+            <div id="output"></div>
+            <button class="btn copy-btn" id="copyBtn" onclick="copyOutput()" style="display: none;">
+                📋 결과 복사하기
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+        let analysisResult = '';
+
+        // 파일 선택 핸들러
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+                alert('PDF 파일만 선택할 수 있습니다.');
+                return;
+            }
+
+            selectedFile = file;
+
+            // 파일명 표시
+            const fileNameEl = document.getElementById('fileName');
+            fileNameEl.style.display = 'block';
+            fileNameEl.innerHTML = `<strong>선택된 파일:</strong> ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+
+            // 분석 버튼 활성화
+            document.getElementById('analyzeBtn').disabled = false;
+        }
+
+        // PDF 분석 함수
+        async function analyzePdf() {
+            if (!selectedFile) {
+                alert('먼저 PDF 파일을 선택하세요.');
+                return;
+            }
+
+            const output = document.getElementById('output');
+            const status = document.getElementById('status');
+            const copyBtn = document.getElementById('copyBtn');
+
+            // 상태 업데이트
+            status.className = 'status loading';
+            status.textContent = '분석 중...';
+            output.innerHTML = '<span class="info">PDF 파일을 분석하는 중입니다...</span>';
+
+            try {
+                // 파일을 ArrayBuffer로 변환
+                const arrayBuffer = await selectedFile.arrayBuffer();
+
+                // PDF 문서 로드
+                const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer, {
+                    ignoreEncryption: true
+                });
+
+                let result = '';
+
+                // 기본 정보
+                result += `<span class="highlight">========================================</span>\n`;
+                result += `<span class="highlight">PDF 기본 정보</span>\n`;
+                result += `<span class="highlight">========================================</span>\n\n`;
+                result += `파일명: ${selectedFile.name}\n`;
+                result += `페이지 수: ${pdfDoc.getPageCount()}\n`;
+
+                // 각 페이지 크기
+                const pages = pdfDoc.getPages();
+                pages.forEach((page, index) => {
+                    const { width, height } = page.getSize();
+                    result += `페이지 ${index + 1} 크기: ${width.toFixed(2)} x ${height.toFixed(2)} pt\n`;
+                });
+
+                result += `\n`;
+
+                // 폼 필드 분석
+                result += `<span class="highlight">========================================</span>\n`;
+                result += `<span class="highlight">폼 필드 분석</span>\n`;
+                result += `<span class="highlight">========================================</span>\n\n`;
+
+                const form = pdfDoc.getForm();
+                const fields = form.getFields();
+
+                if (fields.length === 0) {
+                    result += `<span class="error">⚠️ 이 PDF는 폼 필드가 없는 일반 문서입니다.</span>\n`;
+                    result += `<span class="error">수동으로 좌표를 측정해야 합니다.</span>\n\n`;
+                    result += `<span class="info">💡 Tip: Adobe Acrobat이나 PDF-XChange Editor에서\n`;
+                    result += `   마우스 좌표를 확인하여 수동으로 측정할 수 있습니다.</span>\n\n`;
+
+                    // 수동 좌표 입력 가이드 생성
+                    result += `<span class="highlight">========================================</span>\n`;
+                    result += `<span class="highlight">PDF_COORDINATES 템플릿</span>\n`;
+                    result += `<span class="highlight">========================================</span>\n\n`;
+                    result += generateCoordinatesTemplate(pages);
+
+                } else {
+                    result += `<span class="success">✅ ${fields.length}개의 폼 필드를 발견했습니다!</span>\n\n`;
+
+                    // 각 필드 정보 출력
+                    fields.forEach((field, index) => {
+                        const name = field.getName();
+                        const type = field.constructor.name;
+
+                        result += `<span class="info">--- 필드 ${index + 1} ---</span>\n`;
+                        result += `이름: <span class="success">${name}</span>\n`;
+                        result += `타입: ${type}\n`;
+
+                        // 위젯(위치 정보) 가져오기
+                        try {
+                            const widgets = field.acroField.getWidgets();
+                            widgets.forEach((widget, wIndex) => {
+                                const rect = widget.getRectangle();
+                                result += `위치 (Widget ${wIndex + 1}):\n`;
+                                result += `  x: ${rect.x.toFixed(2)}, y: ${rect.y.toFixed(2)}\n`;
+                                result += `  width: ${rect.width.toFixed(2)}, height: ${rect.height.toFixed(2)}\n`;
+                            });
+                        } catch (e) {
+                            result += `위치: <span class="error">좌표 추출 불가</span>\n`;
+                        }
+
+                        result += `\n`;
+                    });
+
+                    // PDF_COORDINATES 객체 생성
+                    result += `<span class="highlight">========================================</span>\n`;
+                    result += `<span class="highlight">PDF_COORDINATES 객체 (복사용)</span>\n`;
+                    result += `<span class="highlight">========================================</span>\n\n`;
+                    result += generateCoordinatesObject(fields);
+                }
+
+                output.innerHTML = result;
+                analysisResult = output.textContent; // 텍스트만 저장
+
+                // 상태 업데이트
+                status.className = 'status complete';
+                status.textContent = '완료!';
+                copyBtn.style.display = 'inline-block';
+
+            } catch (error) {
+                console.error('PDF 분석 실패:', error);
+                output.innerHTML = `<span class="error">❌ PDF 분석 중 오류가 발생했습니다.</span>\n\n${error.message}`;
+                status.className = 'status';
+                status.textContent = '';
+            }
+        }
+
+        // 좌표 템플릿 생성 (폼 필드 없는 경우)
+        function generateCoordinatesTemplate(pages) {
+            let template = `const PDF_COORDINATES = {\n`;
+            template += `    // 페이지 1\n`;
+            template += `    page1: {\n`;
+            template += `        // 예시: 필드명: { x: X좌표, y: Y좌표, size: 폰트크기 }\n`;
+            template += `        reportDatetime: { x: 100, y: 700, size: 11 },\n`;
+            template += `        reportLocation: { x: 100, y: 680, size: 11 },\n`;
+            template += `        driverName: { x: 100, y: 650, size: 11 },\n`;
+            template += `        // ... 필요한 필드 추가\n`;
+            template += `    }\n`;
+            template += `};\n`;
+            return template;
+        }
+
+        // 좌표 객체 생성 (폼 필드 있는 경우)
+        function generateCoordinatesObject(fields) {
+            let obj = `const PDF_COORDINATES = {\n`;
+
+            fields.forEach((field) => {
+                const name = field.getName();
+                try {
+                    const widgets = field.acroField.getWidgets();
+                    if (widgets.length > 0) {
+                        const rect = widgets[0].getRectangle();
+                        obj += `    '${name}': { x: ${rect.x.toFixed(2)}, y: ${rect.y.toFixed(2)}, width: ${rect.width.toFixed(2)}, height: ${rect.height.toFixed(2)} },\n`;
+                    }
+                } catch (e) {
+                    obj += `    // '${name}': 좌표 추출 불가\n`;
+                }
+            });
+
+            obj += `};\n`;
+            return obj;
+        }
+
+        // 결과 복사
+        function copyOutput() {
+            const output = document.getElementById('output');
+            const text = output.textContent;
+
+            navigator.clipboard.writeText(text).then(() => {
+                alert('결과가 클립보드에 복사되었습니다!');
+            }).catch(err => {
+                console.error('복사 실패:', err);
+
+                // 폴백: 텍스트 선택
+                const range = document.createRange();
+                range.selectNode(output);
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+            });
+        }
+
+        // 드래그 앤 드롭 지원
+        const dropZone = document.querySelector('.file-input-wrapper');
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#3b82f6';
+            dropZone.style.background = '#eff6ff';
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.borderColor = '#cbd5e1';
+            dropZone.style.background = 'transparent';
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#cbd5e1';
+            dropZone.style.background = 'transparent';
+
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                document.getElementById('pdfFile').files = e.dataTransfer.files;
+                handleFileSelect({ target: { files: [file] } });
+            }
+        });
+    </script>
+</body>
+
+</html>
