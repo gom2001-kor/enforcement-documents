@@ -269,7 +269,10 @@ async function addMultilineText(page, lines, x, y, options = {}) {
 // ==========================================================================
 
 /**
- * PDFDocument를 파일로 다운로드
+ * PDFDocument를 파일로 다운로드 (크로스 브라우저 호환)
+ * 
+ * iOS Safari에서는 a.download 속성이 제대로 작동하지 않아
+ * DataURL 방식과 새 탭 열기를 조합하여 처리합니다.
  * 
  * @param {PDFLib.PDFDocument} pdfDoc - 다운로드할 PDF 문서
  * @param {string} filename - 파일명 (확장자 제외, 자동으로 .pdf 추가됨)
@@ -292,26 +295,84 @@ async function downloadPdf(pdfDoc, filename = '문서') {
         // Blob 생성
         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
 
-        // 다운로드 링크 생성 및 클릭
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fullFilename;
+        // 브라우저 감지
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const isSafari = /Safari/i.test(navigator.userAgent) && !/Chrome/i.test(navigator.userAgent);
+        const isIOSSafari = isIOS && isSafari;
 
-        // DOM에 추가하고 클릭 (일부 브라우저 호환성)
-        document.body.appendChild(link);
-        link.click();
+        if (isIOSSafari) {
+            // =================================================================
+            // iOS Safari 대응: DataURL 방식 + 새 탭 열기
+            // iOS Safari에서는 a.download가 작동하지 않음
+            // =================================================================
+            console.log('[downloadPdf] iOS Safari 감지 - DataURL 방식 사용');
 
-        // 정리
-        document.body.removeChild(link);
-        setTimeout(() => URL.revokeObjectURL(url), 100);
+            const reader = new FileReader();
+            reader.onloadend = function () {
+                // 새 탭에서 PDF 열기 (사용자가 저장해야 함)
+                const pdfWindow = window.open('', '_blank');
+                if (pdfWindow) {
+                    pdfWindow.location.href = reader.result;
 
-        console.log(`PDF 다운로드 완료: ${fullFilename}`);
+                    if (typeof showToast === 'function') {
+                        showToast('PDF가 열렸습니다. 공유 버튼을 눌러 저장하세요.', 'info', 5000);
+                    }
+                } else {
+                    // 팝업 차단 시 fallback
+                    const link = document.createElement('a');
+                    link.href = reader.result;
+                    link.download = fullFilename;
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            };
+            reader.onerror = function () {
+                throw new Error('PDF 변환 중 오류가 발생했습니다.');
+            };
+            reader.readAsDataURL(blob);
 
-        // 성공 토스트 메시지 (app.js의 showToast 사용)
-        if (typeof showToast === 'function') {
-            showToast(`${fullFilename} 다운로드 완료`, 'success');
+        } else if (isIOS) {
+            // =================================================================
+            // iOS Chrome/Firefox 등: Blob URL + 새 탭
+            // =================================================================
+            console.log('[downloadPdf] iOS 기타 브라우저 - Blob URL + 새 탭');
+
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+
+            if (typeof showToast === 'function') {
+                showToast('PDF가 열렸습니다. 공유 버튼을 눌러 저장하세요.', 'info', 5000);
+            }
+
+        } else {
+            // =================================================================
+            // 일반 브라우저 (Android, Desktop): 표준 다운로드
+            // =================================================================
+            console.log('[downloadPdf] 표준 다운로드 방식');
+
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fullFilename;
+
+            // DOM에 추가하고 클릭 (일부 브라우저 호환성)
+            document.body.appendChild(link);
+            link.click();
+
+            // 정리
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+
+            if (typeof showToast === 'function') {
+                showToast(`${fullFilename} 다운로드 완료`, 'success');
+            }
         }
+
+        console.log(`PDF 다운로드 처리 완료: ${fullFilename}`);
 
     } catch (error) {
         console.error('PDF 다운로드 실패:', error);

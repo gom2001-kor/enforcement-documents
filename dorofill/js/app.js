@@ -71,20 +71,169 @@ function formatTimeInput(date) {
 }
 
 // ==========================================================================
-// Local Storage Functions
+// Browser Detection & Compatibility
 // ==========================================================================
 
 /**
- * Save data to local storage
+ * 브라우저 정보 감지
+ * @returns {Object} 브라우저 정보 객체
+ */
+function getBrowserInfo() {
+    const ua = navigator.userAgent;
+    return {
+        isIOS: /iPhone|iPad|iPod/i.test(ua),
+        isAndroid: /Android/i.test(ua),
+        isSafari: /Safari/i.test(ua) && !/Chrome/i.test(ua),
+        isChrome: /Chrome/i.test(ua) && !/Edge/i.test(ua),
+        isFirefox: /Firefox/i.test(ua),
+        isEdge: /Edge|Edg/i.test(ua),
+        isMobile: /Mobile|Android|iPhone|iPad|iPod/i.test(ua),
+        isIOSSafari: /iPhone|iPad|iPod/i.test(ua) && /Safari/i.test(ua) && !/Chrome/i.test(ua)
+    };
+}
+
+/**
+ * datetime-local 입력 지원 여부 확인
+ * @returns {boolean} 지원 여부
+ */
+function supportsDatetimeLocal() {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'datetime-local');
+    return input.type === 'datetime-local';
+}
+
+/**
+ * datetime-local이 지원되지 않는 브라우저에서 폴백 적용
+ * @param {string} inputId - 입력 필드 ID
+ */
+function applyDatetimeFallback(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    if (!supportsDatetimeLocal()) {
+        input.type = 'text';
+        input.placeholder = 'YYYY-MM-DD HH:MM';
+        input.pattern = '\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}';
+
+        // 포맷 도움말 추가
+        const hint = document.createElement('p');
+        hint.className = 'text-xs text-gray-500 mt-1';
+        hint.textContent = '형식: 2026-01-13 23:30';
+        input.parentNode.appendChild(hint);
+
+        console.log(`[호환성] ${inputId}: datetime-local 폴백 적용됨`);
+    }
+}
+
+// ==========================================================================
+// Local Storage Functions (with Quota Handling)
+// ==========================================================================
+
+/**
+ * localStorage 용량 확인 (대략적)
+ * @returns {Object} used, total, remaining (바이트 단위)
+ */
+function getStorageUsage() {
+    let used = 0;
+    try {
+        for (let key in localStorage) {
+            if (localStorage.hasOwnProperty(key)) {
+                used += localStorage[key].length * 2; // UTF-16
+            }
+        }
+    } catch (e) {
+        console.warn('[스토리지] 용량 확인 실패:', e);
+    }
+
+    // 대부분 브라우저에서 5MB 제한
+    const total = 5 * 1024 * 1024;
+    return {
+        used,
+        total,
+        remaining: total - used,
+        usedPercent: Math.round((used / total) * 100)
+    };
+}
+
+/**
+ * 오래된 저장 데이터 삭제 (용량 확보)
+ */
+function clearOldStorageData() {
+    try {
+        const keysToRemove = [];
+        const now = Date.now();
+        const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
+
+        for (let key in localStorage) {
+            if (!key.startsWith(APP_CONFIG.storagePrefix)) continue;
+
+            try {
+                const data = JSON.parse(localStorage.getItem(key));
+                // _savedAt 필드가 있고 1주일이 지난 경우 삭제 대상
+                if (data && data._savedAt && new Date(data._savedAt).getTime() < oneWeekAgo) {
+                    keysToRemove.push(key);
+                }
+            } catch (e) {
+                // 파싱 실패한 오래된 데이터도 삭제
+                keysToRemove.push(key);
+            }
+        }
+
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+
+        if (keysToRemove.length > 0) {
+            console.log(`[스토리지] ${keysToRemove.length}개 오래된 데이터 삭제됨`);
+        }
+    } catch (e) {
+        console.warn('[스토리지] 오래된 데이터 삭제 실패:', e);
+    }
+}
+
+/**
+ * Save data to local storage (with quota handling)
  * @param {string} key - Storage key
  * @param {any} data - Data to save
+ * @returns {boolean} 저장 성공 여부
  */
 function saveToStorage(key, data) {
     try {
         const fullKey = APP_CONFIG.storagePrefix + key;
-        localStorage.setItem(fullKey, JSON.stringify(data));
+
+        // 타임스탬프 추가
+        if (typeof data === 'object' && data !== null) {
+            data._savedAt = new Date().toISOString();
+        }
+
+        const jsonData = JSON.stringify(data);
+        localStorage.setItem(fullKey, jsonData);
+        return true;
+
     } catch (error) {
+        // 용량 초과 에러 처리
+        if (error.name === 'QuotaExceededError' ||
+            error.code === 22 || // Safari
+            error.code === 1014 || // Firefox
+            error.message.includes('quota')) {
+
+            console.warn('[스토리지] 용량 초과 - 오래된 데이터 삭제 시도');
+            clearOldStorageData();
+
+            // 재시도
+            try {
+                const fullKey = APP_CONFIG.storagePrefix + key;
+                localStorage.setItem(fullKey, JSON.stringify(data));
+                return true;
+            } catch (retryError) {
+                console.error('[스토리지] 재시도 실패:', retryError);
+                if (typeof showToast === 'function') {
+                    showToast('저장 공간이 부족합니다. 불필요한 데이터를 삭제해주세요.', 'warning');
+                }
+                return false;
+            }
+        }
+
         console.error('Failed to save to storage:', error);
+        return false;
     }
 }
 
