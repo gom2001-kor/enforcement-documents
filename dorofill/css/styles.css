@@ -597,18 +597,136 @@ body {
    Responsive - Mobile Optimizations
    ========================================================================== */
 
-/* Prevent zoom on input focus (iOS) */
+/* 모바일 기기 (768px 이하) */
+@media (max-width: 768px) {
+
+    /* 컨테이너 패딩 축소 */
+    .container {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    /* 메인 콘텐츠 영역 */
+    .main-content {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    /* 카드 패딩 축소 */
+    .card {
+        padding: 1rem;
+    }
+
+    /* 섹션 간격 축소 */
+    section {
+        margin-bottom: 0.75rem;
+    }
+
+    /* 버튼 크기 - 모바일 터치 최적화 */
+    .btn {
+        min-height: 52px;
+        font-size: 1.125rem;
+        padding: 0 1.25rem;
+    }
+
+    /* 입력 필드 - 터치 최적화 및 확대 방지 */
+    .form-input,
+    .form-select,
+    .form-textarea {
+        min-height: 48px;
+        font-size: 16px;
+        /* iOS 확대 방지 필수 */
+        padding: 0.75rem 1rem;
+    }
+
+    /* 레이블 크기 */
+    .form-label {
+        font-size: 0.875rem;
+    }
+
+    /* 가로 스크롤 방지 */
+    body {
+        overflow-x: hidden;
+    }
+
+    /* 차량중량 테이블 스크롤 영역 */
+    .weight-table-container,
+    [class*="overflow-x-auto"] {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        /* Firefox */
+        -ms-overflow-style: none;
+        /* IE/Edge */
+    }
+
+    .weight-table-container::-webkit-scrollbar,
+    [class*="overflow-x-auto"]::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* 차량규격/중량 입력 필드 최소 크기 */
+    .weight-input,
+    .violation-input {
+        min-width: 55px;
+        padding: 0.5rem 0.25rem;
+        font-size: 14px;
+    }
+
+    /* 그리드 간격 축소 */
+    .grid {
+        gap: 0.5rem;
+    }
+
+    /* 푸터 고정 버튼 영역 */
+    .footer-fixed {
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+
+    /* 헤더/푸터 높이 최적화 */
+    .header-fixed {
+        height: 56px;
+    }
+
+    /* 메인 콘텐츠 상하 패딩 조정 */
+    .main-content {
+        padding-top: calc(56px + 0.75rem);
+        padding-bottom: calc(88px + 0.75rem);
+    }
+}
+
+/* 작은 화면 (375px 이하 - 구형 iPhone 등) */
 @media (max-width: 375px) {
 
+    /* 폰트 크기 확대 방지 필수 */
     .form-input,
     .form-select,
     .form-textarea {
         font-size: 16px;
     }
+
+    /* 더 작은 여백 */
+    .container {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    /* 카드 패딩 축소 */
+    .card,
+    section.bg-white {
+        padding: 0.75rem;
+    }
+
+    /* 버튼 패딩 축소 */
+    .btn {
+        padding: 0 1rem;
+    }
 }
 
-/* Larger touch targets on mobile */
+/* 큰 모바일/작은 태블릿 (640px 이하) */
 @media (max-width: 640px) {
+
+    /* 터치 타겟 최소 크기 보장 */
     .btn {
         min-height: var(--min-touch-target);
     }
@@ -616,6 +734,50 @@ body {
     .form-input,
     .form-select {
         min-height: var(--min-touch-target);
+    }
+
+    /* 체크박스/라디오 크기 */
+    input[type="checkbox"],
+    input[type="radio"] {
+        min-width: 24px;
+        min-height: 24px;
+    }
+
+    /* PDF 템플릿 선택 영역 */
+    input[type="file"] {
+        font-size: 14px;
+    }
+
+    /* 진술인 추가 버튼 */
+    .witness-add-btn {
+        min-height: 44px;
+    }
+}
+
+/* 가로 모드 모바일 */
+@media (max-height: 500px) and (orientation: landscape) {
+    .header-fixed {
+        height: 48px;
+    }
+
+    .footer-fixed {
+        height: 64px;
+    }
+
+    .main-content {
+        padding-top: calc(48px + 0.5rem);
+        padding-bottom: calc(64px + 0.5rem);
+    }
+}
+
+/* iOS Safe Area 지원 */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .footer-fixed {
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    }
+
+    .main-content {
+        padding-bottom: calc(var(--footer-height) + var(--spacing-md) + env(safe-area-inset-bottom));
     }
 }
 
