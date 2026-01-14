@@ -137,39 +137,60 @@ function clearAllStorage() {
 
 /**
  * Show toast notification
+ * 화면 하단에 토스트 메시지 표시 (슬라이드 애니메이션)
  * @param {string} message - Message to display
  * @param {string} type - Toast type ('success', 'error', 'info', 'warning')
- * @param {number} duration - Duration in milliseconds
+ * @param {number} duration - Duration in milliseconds (default: 3000)
  */
 function showToast(message, type = 'info', duration = 3000) {
     // Remove existing toasts
     const existingToasts = document.querySelectorAll('.toast-notification');
-    existingToasts.forEach(toast => toast.remove());
+    existingToasts.forEach(toast => {
+        toast.classList.add('toast-slide-out');
+        setTimeout(() => toast.remove(), 300);
+    });
 
-    // Create toast element
-    const toast = document.createElement('div');
-    toast.className = 'toast-notification';
-
-    // Toast styles
+    // 색상 매핑
     const bgColors = {
         success: 'bg-green-500',
         error: 'bg-red-500',
-        warning: 'bg-yellow-500',
+        warning: 'bg-yellow-500 text-yellow-900',
         info: 'bg-blue-500'
     };
 
+    // 아이콘 매핑 (이모지)
     const icons = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️'
+    };
+
+    // SVG 아이콘 (대체용)
+    const svgIcons = {
         success: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>',
         error: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>',
         warning: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>',
         info: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
     };
 
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'polite');
+
+    // 모바일에서는 하단 중앙, 데스크탑에서는 하단 오른쪽
     toast.innerHTML = `
-        <div class="fixed top-20 left-4 right-4 z-[100] flex justify-center animate-fade-in">
-            <div class="${bgColors[type]} text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 max-w-sm">
-                ${icons[type]}
-                <span class="text-sm font-medium">${message}</span>
+        <div class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-sm z-[100] toast-slide-in">
+            <div class="${bgColors[type] || bgColors.info} text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-3">
+                <span class="text-xl flex-shrink-0">${icons[type] || icons.info}</span>
+                <span class="text-sm font-medium flex-1">${message}</span>
+                <button type="button" class="flex-shrink-0 opacity-70 hover:opacity-100 transition-opacity" onclick="this.closest('.toast-notification').remove()">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
             </div>
         </div>
     `;
@@ -177,12 +198,19 @@ function showToast(message, type = 'info', duration = 3000) {
     document.body.appendChild(toast);
 
     // Remove after duration
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(-10px)';
-        toast.style.transition = 'all 0.3s ease';
+    const timeoutId = setTimeout(() => {
+        const innerToast = toast.querySelector('.toast-slide-in');
+        if (innerToast) {
+            innerToast.classList.remove('toast-slide-in');
+            innerToast.classList.add('toast-slide-out');
+        }
         setTimeout(() => toast.remove(), 300);
     }, duration);
+
+    // 클릭으로 닫으면 타이머 취소
+    toast.addEventListener('click', () => {
+        clearTimeout(timeoutId);
+    });
 }
 
 // ==========================================================================
