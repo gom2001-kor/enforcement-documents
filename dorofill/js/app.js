@@ -149,7 +149,7 @@ function showToast(message, type = 'info', duration = 3000) {
     // Create toast element
     const toast = document.createElement('div');
     toast.className = 'toast-notification';
-    
+
     // Toast styles
     const bgColors = {
         success: 'bg-green-500',
@@ -292,23 +292,390 @@ function resetForm(form) {
 }
 
 // ==========================================================================
+// Form Data Collection & Validation
+// ==========================================================================
+
+/**
+ * 필드 ID 설정 (수정 용이하도록 중앙 관리)
+ */
+const FORM_FIELD_IDS = {
+    report: {
+        // 적발 정보
+        datetime: 'reportDatetime',
+        location: 'reportLocation',
+
+        // 운전자 정보
+        driverName: 'driverName',
+        driverAddress: 'driverAddress',
+        phoneFixed: 'phoneFixed',
+        phoneMobile: 'phoneMobile',
+
+        // 차량 정보
+        vehicleType: 'vehicleType',
+        plateNumber: 'plateNumber',
+        route: 'route',
+        cargo: 'cargo',
+
+        // 차량규격 (측정, 허용, 위반)
+        widthMeasured: 'widthMeasured',
+        widthAllowed: 'widthAllowed',
+        widthViolation: 'widthViolation',
+        heightMeasured: 'heightMeasured',
+        heightAllowed: 'heightAllowed',
+        heightViolation: 'heightViolation',
+        lengthMeasured: 'lengthMeasured',
+        lengthAllowed: 'lengthAllowed',
+        lengthViolation: 'lengthViolation',
+
+        // 작성자 정보
+        authorDate: 'authorDate',
+        authorOffice: 'authorOffice',
+        authorPosition: 'authorPosition',
+        authorName: 'authorName',
+    },
+    statement: {
+        // 적발 정보 (보고서와 공유 가능)
+        datetime: 'statementDatetime',
+        location: 'statementLocation',
+
+        // 사건 정보
+        vehicleType: 'statementVehicleType',
+        plateNumber: 'statementPlateNumber',
+
+        // 작성자 정보
+        authorDate: 'statementAuthorDate',
+        authorOffice: 'statementAuthorOffice',
+        authorPosition: 'statementAuthorPosition',
+        authorName: 'statementAuthorName',
+    }
+};
+
+/**
+ * 안전하게 요소 값 가져오기
+ * @param {string} id - 요소 ID
+ * @returns {string} 요소 값 또는 빈 문자열
+ */
+function getElementValue(id) {
+    const element = document.getElementById(id);
+    return element ? element.value.trim() : '';
+}
+
+/**
+ * HTML 폼에서 모든 입력값 수집
+ * @param {string} formType - 'report' 또는 'statement'
+ * @returns {Object} 폼 데이터 객체
+ */
+function collectFormData(formType) {
+    const data = {};
+
+    if (formType === 'report') {
+        // ===== 적발 보고서 필드 수집 =====
+
+        // 적발 정보
+        data.datetime = getElementValue('reportDatetime');
+        data.location = getElementValue('reportLocation');
+
+        // 운전자 정보
+        data.driverName = getElementValue('driverName');
+        data.driverAddress = getElementValue('driverAddress');
+        data.phoneFixed = getElementValue('phoneFixed');
+        data.phoneMobile = getElementValue('phoneMobile');
+
+        // 차량 정보
+        data.vehicleType = getElementValue('vehicleType');
+        data.plateNumber = getElementValue('plateNumber');
+        data.route = getElementValue('route');
+        data.cargo = getElementValue('cargo');
+
+        // 차량규격 (측정, 허용, 위반)
+        data.widthMeasured = getElementValue('widthMeasured');
+        data.widthAllowed = getElementValue('widthAllowed');
+        data.widthViolation = getElementValue('widthViolation');
+        data.heightMeasured = getElementValue('heightMeasured');
+        data.heightAllowed = getElementValue('heightAllowed');
+        data.heightViolation = getElementValue('heightViolation');
+        data.lengthMeasured = getElementValue('lengthMeasured');
+        data.lengthAllowed = getElementValue('lengthAllowed');
+        data.lengthViolation = getElementValue('lengthViolation');
+
+        // 차량중량 (1~8축)
+        for (let i = 1; i <= 8; i++) {
+            data[`axle${i}Measured`] = getElementValue(`axle${i}Measured`);
+            data[`axle${i}Violation`] = getElementValue(`axle${i}Violation`);
+        }
+
+        // 총중량
+        data.totalWeightMeasured = getElementValue('totalWeightMeasured');
+        data.totalWeightViolation = getElementValue('totalWeightViolation');
+
+        // 작성자 정보
+        data.authorDate = getElementValue('authorDate');
+        data.authorOffice = getElementValue('authorOffice');
+        data.authorPosition = getElementValue('authorPosition');
+        data.authorName = getElementValue('authorName');
+
+    } else if (formType === 'statement') {
+        // ===== 위반 진술서 필드 수집 =====
+
+        // 적발 정보
+        data.datetime = getElementValue('statementDatetime');
+        data.location = getElementValue('statementLocation');
+
+        // 차량 정보
+        data.vehicleType = getElementValue('statementVehicleType');
+        data.plateNumber = getElementValue('statementPlateNumber');
+
+        // 작성자 정보
+        data.authorDate = getElementValue('statementAuthorDate');
+        data.authorOffice = getElementValue('statementAuthorOffice');
+        data.authorPosition = getElementValue('statementAuthorPosition');
+        data.authorName = getElementValue('statementAuthorName');
+
+        // 진술인 배열 수집
+        data.witnesses = collectWitnesses();
+    }
+
+    return data;
+}
+
+/**
+ * 동적으로 추가된 모든 진술인 정보 수집
+ * @returns {Array<Object>} 진술인 배열
+ */
+function collectWitnesses() {
+    const witnesses = [];
+    const witnessCards = document.querySelectorAll('[data-witness-index]');
+
+    witnessCards.forEach(card => {
+        const index = card.dataset.witnessIndex;
+        const witness = {
+            office: getElementValue(`witness${index}Office`),
+            position: getElementValue(`witness${index}Position`),
+            name: getElementValue(`witness${index}Name`),
+        };
+
+        // 적어도 이름이 있는 경우만 추가
+        if (witness.name) {
+            witnesses.push(witness);
+        }
+    });
+
+    return witnesses;
+}
+
+/**
+ * 필수 필드 검증 규칙
+ */
+const VALIDATION_RULES = {
+    report: {
+        required: [
+            { field: 'datetime', label: '적발 일시' },
+            { field: 'location', label: '적발 위치' },
+            { field: 'driverName', label: '운전자 성명' },
+            { field: 'plateNumber', label: '차량 등록번호' },
+            { field: 'authorName', label: '작성자 성명' },
+        ],
+        optional: [
+            'driverAddress', 'phoneFixed', 'phoneMobile', 'vehicleType',
+            'route', 'cargo', 'authorDate', 'authorOffice', 'authorPosition'
+        ]
+    },
+    statement: {
+        required: [
+            { field: 'datetime', label: '적발 일시' },
+            { field: 'location', label: '적발 위치' },
+        ],
+        minWitnesses: 1
+    }
+};
+
+/**
+ * 필수 필드가 모두 입력되었는지 확인
+ * @param {Object} data - 폼 데이터
+ * @param {string} formType - 폼 유형 ('report' 또는 'statement')
+ * @returns {Object} { valid: boolean, errors: Array<string>, missingFields: Array<string> }
+ */
+function validateFormData(data, formType) {
+    const errors = [];
+    const missingFields = [];
+    const rules = VALIDATION_RULES[formType];
+
+    if (!rules) {
+        console.warn(`[Validation] 알 수 없는 폼 유형: ${formType}`);
+        return { valid: true, errors: [], missingFields: [] };
+    }
+
+    // 필수 필드 검사
+    if (rules.required) {
+        rules.required.forEach(({ field, label }) => {
+            if (!data[field] || data[field].trim() === '') {
+                errors.push(`${label}을(를) 입력해주세요.`);
+                missingFields.push(field);
+            }
+        });
+    }
+
+    // 진술서 특수 검증: 최소 진술인 수
+    if (formType === 'statement' && rules.minWitnesses) {
+        if (!data.witnesses || data.witnesses.length < rules.minWitnesses) {
+            errors.push(`진술인을 ${rules.minWitnesses}명 이상 입력해주세요.`);
+            missingFields.push('witnesses');
+        }
+    }
+
+    // 차량 번호 형식 검증 (선택적)
+    if (data.plateNumber && typeof VALIDATOR !== 'undefined' && VALIDATOR.isValidVehicleNumber) {
+        if (!VALIDATOR.isValidVehicleNumber(data.plateNumber)) {
+            errors.push('올바른 차량번호 형식이 아닙니다. (예: 12가1234, 서울12가1234)');
+        }
+    }
+
+    // 전화번호 형식 검증 (선택적, 입력된 경우만)
+    if (data.phoneMobile && typeof VALIDATOR !== 'undefined' && VALIDATOR.isValidPhone) {
+        if (!VALIDATOR.isValidPhone(data.phoneMobile)) {
+            errors.push('올바른 휴대폰 번호 형식이 아닙니다.');
+        }
+    }
+
+    return {
+        valid: errors.length === 0,
+        errors: errors,
+        missingFields: missingFields
+    };
+}
+
+/**
+ * 검증 오류를 사용자에게 표시
+ * @param {Array<string>} errors - 오류 메시지 배열
+ * @param {Object} options - 옵션
+ * @param {number} [options.duration=5000] - 자동 제거 시간 (ms)
+ * @param {boolean} [options.scrollToError=true] - 첫 번째 오류로 스크롤
+ */
+function showValidationErrors(errors, options = {}) {
+    const { duration = 5000, scrollToError = true } = options;
+
+    if (!errors || errors.length === 0) return;
+
+    const errorHtml = errors.map(err => `<li class="flex items-start gap-2">
+        <span class="text-red-500 mt-0.5">•</span>
+        <span>${err}</span>
+    </li>`).join('');
+
+    const message = `
+        <div class="bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg p-4 mb-4 animate-fade-in">
+            <div class="flex items-center gap-2 mb-2">
+                <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <h3 class="font-bold text-red-700 dark:text-red-400">입력 오류</h3>
+            </div>
+            <ul class="text-red-600 dark:text-red-300 text-sm space-y-1 ml-1">
+                ${errorHtml}
+            </ul>
+        </div>
+    `;
+
+    // 에러 컨테이너 찾기 또는 생성
+    let errorContainer = document.getElementById('errorContainer');
+    if (!errorContainer) {
+        errorContainer = document.createElement('div');
+        errorContainer.id = 'errorContainer';
+        // 페이지 상단에 추가
+        const main = document.querySelector('main') || document.body;
+        main.insertBefore(errorContainer, main.firstChild);
+    }
+
+    errorContainer.innerHTML = message;
+
+    // 에러 컨테이너로 스크롤
+    if (scrollToError) {
+        errorContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // 지정 시간 후 자동 제거
+    if (duration > 0) {
+        setTimeout(() => {
+            errorContainer.innerHTML = '';
+        }, duration);
+    }
+}
+
+/**
+ * 검증 오류 제거
+ */
+function clearValidationErrors() {
+    const errorContainer = document.getElementById('errorContainer');
+    if (errorContainer) {
+        errorContainer.innerHTML = '';
+    }
+}
+
+/**
+ * 첫 번째 오류 필드로 스크롤 및 포커스
+ * @param {Array<string>} missingFields - 누락된 필드 ID 배열
+ */
+function focusFirstErrorField(missingFields) {
+    if (!missingFields || missingFields.length === 0) return;
+
+    // FORM_FIELD_IDS에서 실제 ID 찾기
+    for (const fieldKey of missingFields) {
+        // report 타입에서 먼저 찾기
+        const reportId = FORM_FIELD_IDS.report?.[fieldKey];
+        const statementId = FORM_FIELD_IDS.statement?.[fieldKey];
+        const actualId = reportId || statementId || fieldKey;
+
+        const element = document.getElementById(actualId);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            element.focus();
+            // 시각적 하이라이트
+            element.classList.add('ring-2', 'ring-red-500', 'ring-offset-2');
+            setTimeout(() => {
+                element.classList.remove('ring-2', 'ring-red-500', 'ring-offset-2');
+            }, 3000);
+            break;
+        }
+    }
+}
+
+/**
+ * 폼 데이터 수집 및 검증 통합 함수
+ * @param {string} formType - 'report' 또는 'statement'
+ * @returns {Object} { data: Object|null, valid: boolean, errors: Array<string> }
+ */
+function collectAndValidateForm(formType) {
+    clearValidationErrors();
+
+    const data = collectFormData(formType);
+    const validation = validateFormData(data, formType);
+
+    if (!validation.valid) {
+        showValidationErrors(validation.errors);
+        focusFirstErrorField(validation.missingFields);
+        return { data: null, valid: false, errors: validation.errors };
+    }
+
+    return { data: data, valid: true, errors: [] };
+}
+
+// ==========================================================================
 // Initialization
 // ==========================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log(`${APP_CONFIG.appName} v${APP_CONFIG.version} initialized`);
-    
+
     // Set current date/time defaults if needed
     const dateInputs = document.querySelectorAll('input[type="date"]');
     const timeInputs = document.querySelectorAll('input[type="time"]');
-    
+
     const now = new Date();
     dateInputs.forEach(input => {
         if (!input.value) {
             input.value = formatDateInput(now);
         }
     });
-    
+
     timeInputs.forEach(input => {
         if (!input.value) {
             input.value = formatTimeInput(now);
