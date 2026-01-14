@@ -1293,6 +1293,168 @@ function clearPdfTemplate() {
 }
 
 // ==========================================================================
+// PDF Generation Event Handlers
+// ==========================================================================
+
+/**
+ * 적발 보고서 PDF 생성 핸들러
+ * @param {Event} e - 클릭 이벤트 
+ */
+async function handleReportPdfGeneration(e) {
+    if (e) e.preventDefault();
+
+    // 1. 로딩 표시
+    showLoading('PDF 생성 중...');
+
+    try {
+        // 2. 폼 데이터 수집
+        const formData = collectFormData('report');
+
+        // 3. 필수 필드 검증
+        const validation = validateFormData(formData, 'report');
+        if (!validation.valid) {
+            hideLoading();
+            showValidationErrors(validation.errors);
+            focusFirstErrorField(validation.missingFields);
+            return;
+        }
+
+        // 4. PDF 템플릿 확인
+        if (!hasPdfTemplate()) {
+            hideLoading();
+            showToast('PDF 템플릿을 먼저 선택해주세요.', 'error');
+
+            // 템플릿 선택 영역으로 스크롤
+            const templateInput = document.getElementById(PDF_TEMPLATE_CONFIG.inputId);
+            if (templateInput) {
+                templateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return;
+        }
+
+        // 5. PDF 생성 함수 호출
+        const template = getCurrentPdfTemplate();
+
+        // generateReportPdf가 정의되어 있는지 확인
+        if (typeof generateReportPdf === 'function') {
+            await generateReportPdf(template, formData);
+        } else {
+            // 대체 로직 (함수가 없는 경우)
+            console.warn('[PDF 생성] generateReportPdf 함수가 정의되지 않았습니다.');
+            throw new Error('PDF 생성 함수를 찾을 수 없습니다.');
+        }
+
+        // 6. 성공 후 처리
+        saveReportForSharing(formData);  // 진술서에서 사용할 수 있도록 저장
+        clearSavedFormData('report');     // 자동 저장 데이터 삭제
+
+        hideLoading();
+        showToast('PDF가 생성되었습니다!', 'success');
+
+    } catch (error) {
+        hideLoading();
+        console.error('[PDF 생성] 오류:', error);
+        showToast('PDF 생성 중 오류가 발생했습니다.', 'error');
+    }
+}
+
+/**
+ * 위반 진술서 PDF 생성 핸들러
+ * @param {Event} e - 클릭 이벤트
+ */
+async function handleStatementPdfGeneration(e) {
+    if (e) e.preventDefault();
+
+    // 1. 로딩 표시
+    showLoading('PDF 생성 중...');
+
+    try {
+        // 2. 폼 데이터 수집
+        const formData = collectFormData('statement');
+
+        // 3. 필수 필드 검증
+        const validation = validateFormData(formData, 'statement');
+        if (!validation.valid) {
+            hideLoading();
+            showValidationErrors(validation.errors);
+            focusFirstErrorField(validation.missingFields);
+            return;
+        }
+
+        // 4. PDF 템플릿 확인
+        if (!hasPdfTemplate()) {
+            hideLoading();
+            showToast('PDF 템플릿을 먼저 선택해주세요.', 'error');
+
+            // 템플릿 선택 영역으로 스크롤
+            const templateInput = document.getElementById(PDF_TEMPLATE_CONFIG.inputId);
+            if (templateInput) {
+                templateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return;
+        }
+
+        // 5. 진술인 데이터 수집
+        const witnesses = collectWitnesses();
+
+        // 6. PDF 생성 함수 호출
+        const template = getCurrentPdfTemplate();
+
+        // generateStatementPdf가 정의되어 있는지 확인
+        if (typeof generateStatementPdf === 'function') {
+            await generateStatementPdf(template, formData, witnesses);
+        } else {
+            // 대체 로직 (함수가 없는 경우)
+            console.warn('[PDF 생성] generateStatementPdf 함수가 정의되지 않았습니다.');
+            throw new Error('PDF 생성 함수를 찾을 수 없습니다.');
+        }
+
+        // 7. 성공 후 처리
+        clearSavedFormData('statement');  // 자동 저장 데이터 삭제
+
+        hideLoading();
+        showToast('PDF가 생성되었습니다!', 'success');
+
+    } catch (error) {
+        hideLoading();
+        console.error('[PDF 생성] 오류:', error);
+        showToast('PDF 생성 중 오류가 발생했습니다.', 'error');
+    }
+}
+
+/**
+ * PDF 생성 버튼 이벤트 연결 초기화
+ */
+function initializePdfGenerationButtons() {
+    // report.html의 PDF 생성 버튼들 (여러 가능한 ID 지원)
+    const reportPdfBtnIds = ['btn-generate-pdf', 'generateReportPdfBtn', 'btn-generate-report-pdf'];
+    reportPdfBtnIds.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.addEventListener('click', handleReportPdfGeneration);
+            console.log(`[PDF 버튼] ${id} 연결됨 (report)`);
+        }
+    });
+
+    // statement.html의 PDF 생성 버튼들
+    const statementPdfBtnIds = ['btn-generate-pdf', 'generateStatementPdfBtn', 'btn-generate-statement-pdf'];
+
+    // 현재 페이지가 statement인 경우에만 statement 핸들러 연결
+    const formType = getCurrentFormType();
+    if (formType === 'statement') {
+        statementPdfBtnIds.forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                // 기존 핸들러 제거 후 새 핸들러 연결
+                btn.removeEventListener('click', handleReportPdfGeneration);
+                btn.addEventListener('click', handleStatementPdfGeneration);
+                console.log(`[PDF 버튼] ${id} 연결됨 (statement)`);
+            }
+        });
+    }
+}
+
+// ==========================================================================
 // Initialization
 // ==========================================================================
 
@@ -1318,6 +1480,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // PDF 템플릿 핸들러 초기화
     initializePdfTemplateHandler();
+
+    // PDF 생성 버튼 이벤트 연결
+    initializePdfGenerationButtons();
 
     // 자동 저장/복원 초기화 (report 또는 statement 페이지에서만)
     const formType = getCurrentFormType();
