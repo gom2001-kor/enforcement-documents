@@ -1156,6 +1156,143 @@ function getSharedDataInfo() {
 }
 
 // ==========================================================================
+// PDF Template Management
+// ==========================================================================
+
+/** 현재 선택된 PDF 템플릿 파일 (전역) */
+let currentPdfTemplate = null;
+
+/** 템플릿 설정 */
+const PDF_TEMPLATE_CONFIG = {
+    storageKey: 'dorofill_last_template',
+    inputId: 'pdfTemplateFile',
+    statusId: 'templateStatus'
+};
+
+/**
+ * 현재 선택된 PDF 템플릿 가져오기
+ * @returns {File|null} 템플릿 파일 또는 null
+ */
+function getCurrentPdfTemplate() {
+    return currentPdfTemplate;
+}
+
+/**
+ * PDF 템플릿이 선택되었는지 확인
+ * @returns {boolean} 선택 여부
+ */
+function hasPdfTemplate() {
+    return currentPdfTemplate !== null;
+}
+
+/**
+ * PDF 템플릿이 없으면 오류 표시
+ * @returns {boolean} 템플릿 있으면 true, 없으면 false
+ */
+function requirePdfTemplate() {
+    if (!hasPdfTemplate()) {
+        showToast('PDF 템플릿을 먼저 선택해주세요.', 'error');
+
+        // 템플릿 선택 영역으로 스크롤
+        const templateSection = document.getElementById(PDF_TEMPLATE_CONFIG.inputId);
+        if (templateSection) {
+            templateSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            templateSection.parentElement.classList.add('ring-2', 'ring-red-500');
+            setTimeout(() => {
+                templateSection.parentElement.classList.remove('ring-2', 'ring-red-500');
+            }, 3000);
+        }
+
+        return false;
+    }
+    return true;
+}
+
+/**
+ * 템플릿 상태 UI 업데이트
+ * @param {string} type - 'selected', 'hint', 'error'
+ * @param {string} message - 표시할 메시지
+ */
+function updateTemplateStatus(type, message) {
+    const statusEl = document.getElementById(PDF_TEMPLATE_CONFIG.statusId);
+    if (!statusEl) return;
+
+    const icons = {
+        selected: '✅',
+        hint: '💡',
+        error: '❌'
+    };
+
+    const colors = {
+        selected: 'text-green-600',
+        hint: 'text-gray-500',
+        error: 'text-red-600'
+    };
+
+    statusEl.innerHTML = `${icons[type] || ''} <span class="${colors[type] || ''}">${message}</span>`;
+}
+
+/**
+ * PDF 템플릿 업로드 핸들러 초기화
+ */
+function initializePdfTemplateHandler() {
+    const input = document.getElementById(PDF_TEMPLATE_CONFIG.inputId);
+    if (!input) return;
+
+    // 파일 선택 이벤트
+    input.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+
+        if (!file) return;
+
+        // PDF 파일 타입 체크
+        if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+            showToast('PDF 파일만 선택 가능합니다.', 'error');
+            updateTemplateStatus('error', 'PDF 파일을 선택해주세요');
+            input.value = '';
+            currentPdfTemplate = null;
+            return;
+        }
+
+        // 파일 저장 (메모리)
+        currentPdfTemplate = file;
+
+        // 상태 표시
+        updateTemplateStatus('selected', `${file.name} 선택됨`);
+
+        // localStorage에 파일명 저장 (다음 번에 힌트 제공)
+        try {
+            localStorage.setItem(PDF_TEMPLATE_CONFIG.storageKey, file.name);
+        } catch (error) {
+            console.warn('[템플릿] 파일명 저장 실패:', error);
+        }
+
+        showToast('PDF 템플릿이 선택되었습니다.', 'success');
+        console.log('[템플릿] 선택됨:', file.name, `(${(file.size / 1024).toFixed(1)}KB)`);
+    });
+
+    // 마지막 사용 템플릿 힌트 표시
+    try {
+        const lastTemplate = localStorage.getItem(PDF_TEMPLATE_CONFIG.storageKey);
+        if (lastTemplate) {
+            updateTemplateStatus('hint', `이전 사용: ${lastTemplate}`);
+        }
+    } catch (error) {
+        console.warn('[템플릿] 마지막 템플릿 정보 읽기 실패:', error);
+    }
+}
+
+/**
+ * 템플릿 초기화 (새 문서 작성 시)
+ */
+function clearPdfTemplate() {
+    currentPdfTemplate = null;
+    const input = document.getElementById(PDF_TEMPLATE_CONFIG.inputId);
+    if (input) input.value = '';
+    updateTemplateStatus('hint', '새 템플릿을 선택해주세요');
+}
+
+// ==========================================================================
 // Initialization
 // ==========================================================================
 
@@ -1178,6 +1315,9 @@ document.addEventListener('DOMContentLoaded', () => {
             input.value = formatTimeInput(now);
         }
     });
+
+    // PDF 템플릿 핸들러 초기화
+    initializePdfTemplateHandler();
 
     // 자동 저장/복원 초기화 (report 또는 statement 페이지에서만)
     const formType = getCurrentFormType();
