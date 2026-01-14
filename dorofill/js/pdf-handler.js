@@ -181,7 +181,7 @@ function getPageCount(pdfDoc) {
 // ==========================================================================
 
 /**
- * PDF 페이지에 텍스트를 삽입
+ * PDF 페이지에 텍스트를 삽입 (한글 지원)
  * 
  * @param {PDFLib.PDFPage} page - 텍스트를 추가할 페이지
  * @param {string} text - 삽입할 텍스트
@@ -204,10 +204,20 @@ function getPageCount(pdfDoc) {
  *     color: { r: 1, g: 0, b: 0 } 
  * });
  */
+
+// 캐시된 폰트 (한번 로드 후 재사용)
+let cachedKoreanFont = null;
+let cachedKoreanFontBold = null;
+
 async function addTextToPdf(page, text, x, y, options = {}) {
     try {
         // pdf-lib 로드 확인
         checkPdfLib();
+
+        // 빈 텍스트 무시
+        if (!text || text.trim() === '') {
+            return;
+        }
 
         // 옵션 기본값 설정
         const {
@@ -219,12 +229,72 @@ async function addTextToPdf(page, text, x, y, options = {}) {
         // PDF 문서 가져오기 (페이지에서 역참조)
         const pdfDoc = page.doc;
 
-        // 폰트 임베드 (Helvetica 또는 HelveticaBold)
-        // 주의: Helvetica는 영문/숫자만 지원, 한글은 별도 폰트 필요
-        const fontName = isBold
-            ? PDFLib.StandardFonts.HelveticaBold
-            : PDFLib.StandardFonts.Helvetica;
-        const font = await pdfDoc.embedFont(fontName);
+        // 한글 포함 여부 확인
+        const hasKorean = /[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(text);
+
+        let font;
+
+        if (hasKorean) {
+            // ============================================================
+            // 한글 폰트 로드 (Noto Sans KR)
+            // ============================================================
+
+            // fontkit 등록 (한번만)
+            if (typeof fontkit !== 'undefined' && !pdfDoc.fonts) {
+                pdfDoc.registerFontkit(fontkit);
+            }
+
+            // 캐시된 폰트 사용 또는 새로 로드
+            const cacheKey = isBold ? 'bold' : 'regular';
+
+            if (!cachedKoreanFont && !isBold) {
+                // Noto Sans KR Regular 로드
+                const fontUrl = 'https://cdn.jsdelivr.net/gh/nickshanks/Allsorts@master/user/test-fonts/NotoSansKR-Regular.otf';
+                try {
+                    const fontBytes = await fetch(fontUrl).then(res => res.arrayBuffer());
+                    cachedKoreanFont = await pdfDoc.embedFont(fontBytes);
+                } catch (e) {
+                    console.warn('[폰트] Noto Sans KR 로드 실패, Helvetica 대체 사용');
+                    // 한글 제거 후 영문만 출력
+                    const asciiOnly = text.replace(/[가-힣ㄱ-ㅎㅏ-ㅣ]/g, '?');
+                    font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+                    page.drawText(asciiOnly, { x, y, size, font, color: PDFLib.rgb(color.r, color.g, color.b) });
+                    return;
+                }
+            }
+
+            if (!cachedKoreanFontBold && isBold) {
+                // Noto Sans KR Bold 로드
+                const fontUrl = 'https://cdn.jsdelivr.net/gh/nickshanks/Allsorts@master/user/test-fonts/NotoSansKR-Bold.otf';
+                try {
+                    const fontBytes = await fetch(fontUrl).then(res => res.arrayBuffer());
+                    cachedKoreanFontBold = await pdfDoc.embedFont(fontBytes);
+                } catch (e) {
+                    console.warn('[폰트] Noto Sans KR Bold 로드 실패, Regular 사용');
+                    cachedKoreanFontBold = cachedKoreanFont;
+                }
+            }
+
+            font = isBold ? (cachedKoreanFontBold || cachedKoreanFont) : cachedKoreanFont;
+
+            // 폰트 로드 실패 시 fallback
+            if (!font) {
+                console.warn('[폰트] 한글 폰트 없음, 영문만 출력');
+                const asciiOnly = text.replace(/[가-힣ㄱ-ㅎㅏ-ㅣ]/g, '?');
+                font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+                page.drawText(asciiOnly, { x, y, size, font, color: PDFLib.rgb(color.r, color.g, color.b) });
+                return;
+            }
+
+        } else {
+            // ============================================================
+            // 영문/숫자만: 기본 Helvetica 사용 (가벼움)
+            // ============================================================
+            const fontName = isBold
+                ? PDFLib.StandardFonts.HelveticaBold
+                : PDFLib.StandardFonts.Helvetica;
+            font = await pdfDoc.embedFont(fontName);
+        }
 
         // 텍스트 그리기
         page.drawText(text, {
