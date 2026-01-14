@@ -69,5 +69,83 @@ const CALCULATOR = {
         if (allowedWeight <= 0) return '0%';
         const percentage = ((actualWeight - allowedWeight) / allowedWeight) * 100;
         return Math.max(0, percentage).toFixed(1) + '%';
+    },
+
+    /**
+     * 총중량 자동 계산
+     * 1~8축 하중을 합산하여 총중량 계산
+     * @param {Array<string|number>} axleValues - 축하중 배열
+     * @returns {number} 총중량 (소수점 2자리)
+     */
+    calculateTotalWeight(axleValues) {
+        // 빈 값이나 NaN 처리
+        const total = axleValues.reduce((sum, value) => {
+            const num = parseFloat(value);
+            return sum + (isNaN(num) ? 0 : num);
+        }, 0);
+
+        return parseFloat(total.toFixed(2));
+    },
+
+    /**
+     * 실시간 계산 바인딩
+     * 축하중 입력 필드들에 이벤트 리스너 등록
+     * @param {Array<string>} axleInputIds - 축하중 input ID 배열
+     * @param {string} totalWeightId - 총중량 input ID
+     * @param {Object} options - 옵션 설정
+     * @param {number} [options.limit] - 위반 기준값 (기본값: null, 체크하지 않음)
+     * @param {Function} [options.onCalculate] - 계산 후 실행할 콜백 함수
+     */
+    bindTotalWeightCalculation(axleInputIds, totalWeightId, options = {}) {
+        const axleInputs = axleInputIds
+            .map(id => document.getElementById(id))
+            .filter(input => input !== null); // null 요소 필터링
+
+        const totalWeightInput = document.getElementById(totalWeightId);
+
+        if (!totalWeightInput) {
+            console.warn(`[Calculator] 총중량 input을 찾을 수 없습니다: ${totalWeightId}`);
+            return;
+        }
+
+        // 계산 함수
+        const calculateAndUpdate = () => {
+            const values = axleInputs.map(inp => inp.value);
+            const total = this.calculateTotalWeight(values);
+            totalWeightInput.value = total;
+
+            // 위반 체크 (limit이 설정된 경우에만)
+            if (options.limit && typeof window.checkViolation === 'function') {
+                window.checkViolation(totalWeightInput, total, options.limit);
+            } else if (options.limit && typeof VALIDATOR !== 'undefined' && typeof VALIDATOR.checkViolation === 'function') {
+                VALIDATOR.checkViolation(totalWeightInput, total, options.limit);
+            }
+
+            // 콜백 함수 실행
+            if (typeof options.onCalculate === 'function') {
+                options.onCalculate(total, axleInputs, totalWeightInput);
+            }
+        };
+
+        // 모든 축하중 필드에 input 이벤트 등록
+        axleInputs.forEach(input => {
+            if (input) {
+                input.addEventListener('input', calculateAndUpdate);
+            }
+        });
+
+        // 초기 계산 실행 (선택적)
+        if (options.calculateOnInit) {
+            calculateAndUpdate();
+        }
+
+        // 바인딩 해제 함수 반환 (필요시 cleanup 가능)
+        return () => {
+            axleInputs.forEach(input => {
+                if (input) {
+                    input.removeEventListener('input', calculateAndUpdate);
+                }
+            });
+        };
     }
 };
