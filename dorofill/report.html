@@ -14,6 +14,11 @@
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <!-- fontkit for custom fonts (Korean support) -->
     <script src="https://unpkg.com/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
+    <!-- PDF.js for PDF to image conversion (Gemini analysis) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
 
     <!-- Google Fonts - Noto Sans KR -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -116,6 +121,20 @@
                             </label>
 
                             <div id="templateStatus" class="mt-2 text-sm"></div>
+
+                            <!-- AI 분석 버튼 -->
+                            <div id="aiAnalyzeSection" class="mt-3 pt-3 border-t border-blue-200 hidden">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm text-gray-600">AI 좌표 분석</span>
+                                    <span id="aiCoordinatesStatus" class="text-xs text-gray-400"></span>
+                                </div>
+                                <button type="button" id="analyzeTemplateBtn"
+                                    class="w-full py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+                                    <span>🤖</span>
+                                    <span>AI 좌표 분석</span>
+                                </button>
+                                <p class="text-xs text-gray-400 mt-1">Gemini 2.0 Flash로 필드 위치를 자동 감지합니다</p>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -815,8 +834,93 @@
 
             // 페이지 離開 시 저장
             window.addEventListener('beforeunload', saveFormData);
+
+            // ============================================================
+            // AI 좌표 분석 기능
+            // ============================================================
+
+            // PDF 템플릿 선택 시 AI 분석 섹션 표시
+            const pdfTemplateFile = document.getElementById('pdfTemplateFile');
+            const aiAnalyzeSection = document.getElementById('aiAnalyzeSection');
+            const aiCoordinatesStatus = document.getElementById('aiCoordinatesStatus');
+            const analyzeTemplateBtn = document.getElementById('analyzeTemplateBtn');
+
+            // 저장된 좌표 확인
+            function updateAiCoordinatesStatus() {
+                if (typeof GeminiAnalyzer !== 'undefined' && GeminiAnalyzer.hasCoordinates()) {
+                    const coords = GeminiAnalyzer.loadCoordinates();
+                    const date = new Date(coords.analyzedAt).toLocaleDateString('ko-KR');
+                    aiCoordinatesStatus.textContent = `✅ 분석됨 (${date})`;
+                    aiCoordinatesStatus.className = 'text-xs text-green-600';
+                } else {
+                    aiCoordinatesStatus.textContent = '⚪ 분석 필요';
+                    aiCoordinatesStatus.className = 'text-xs text-gray-400';
+                }
+            }
+
+            // 템플릿 선택 시
+            if (pdfTemplateFile) {
+                pdfTemplateFile.addEventListener('change', () => {
+                    if (pdfTemplateFile.files.length > 0) {
+                        aiAnalyzeSection.classList.remove('hidden');
+                        updateAiCoordinatesStatus();
+                    } else {
+                        aiAnalyzeSection.classList.add('hidden');
+                    }
+                });
+            }
+
+            // AI 분석 버튼 클릭
+            if (analyzeTemplateBtn) {
+                analyzeTemplateBtn.addEventListener('click', async () => {
+                    // API 키 확인
+                    if (typeof GeminiAnalyzer === 'undefined') {
+                        showToast('Gemini 분석 모듈이 로드되지 않았습니다', 'error');
+                        return;
+                    }
+
+                    if (!GeminiAnalyzer.hasApiKey()) {
+                        showToast('설정에서 Gemini API 키를 먼저 입력해주세요', 'warning');
+                        setTimeout(() => window.location.href = 'settings.html', 1500);
+                        return;
+                    }
+
+                    const file = pdfTemplateFile.files[0];
+                    if (!file) {
+                        showToast('PDF 템플릿을 먼저 선택해주세요', 'warning');
+                        return;
+                    }
+
+                    // 버튼 비활성화
+                    analyzeTemplateBtn.disabled = true;
+                    analyzeTemplateBtn.innerHTML = '<span>⏳</span><span>분석 중...</span>';
+
+                    try {
+                        await GeminiAnalyzer.analyzePdf(file, (progress) => {
+                            console.log('[AI 분석]', progress);
+                            analyzeTemplateBtn.innerHTML = `<span>⏳</span><span>${progress}</span>`;
+                        });
+
+                        updateAiCoordinatesStatus();
+                        showToast('PDF 분석 완료! 좌표가 저장되었습니다', 'success');
+
+                    } catch (error) {
+                        console.error('[AI 분석] 실패:', error);
+                        showToast('분석 실패: ' + error.message, 'error');
+                    } finally {
+                        analyzeTemplateBtn.disabled = false;
+                        analyzeTemplateBtn.innerHTML = '<span>🤖</span><span>AI 좌표 분석</span>';
+                    }
+                });
+            }
+
+            // 초기 상태 업데이트
+            updateAiCoordinatesStatus();
         });
     </script>
+
+    <!-- Gemini Analyzer -->
+    <script src="js/gemini-analyzer.js"></script>
 </body>
 
 </html>

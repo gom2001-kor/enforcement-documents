@@ -74,6 +74,31 @@ function getTodayString() {
     return `${year}${month}${day}`;
 }
 
+/**
+ * 페이지별 좌표 가져오기 (AI 좌표 우선, 수동 좌표 폴백)
+ * @param {number} pageNum - 페이지 번호 (1 또는 2)
+ * @returns {Object} 좌표 객체
+ */
+function getPageCoordinates(pageNum) {
+    const pageKey = `page${pageNum}`;
+
+    // AI 분석 좌표 우선 확인
+    if (typeof GeminiAnalyzer !== 'undefined' && GeminiAnalyzer.hasCoordinates()) {
+        const aiCoords = GeminiAnalyzer.loadCoordinates();
+        if (aiCoords && aiCoords[pageKey]) {
+            console.log(`[좌표] 페이지 ${pageNum}: AI 분석 좌표 사용`);
+            // AI 좌표와 수동 좌표를 병합 (AI 우선, 누락된 필드는 수동 좌표 사용)
+            const manualCoords = PDF_COORDINATES?.[pageKey] || {};
+            return { ...manualCoords, ...aiCoords[pageKey] };
+        }
+    }
+
+    // 수동 좌표 사용
+    console.log(`[좌표] 페이지 ${pageNum}: 수동 좌표 사용`);
+    return PDF_COORDINATES?.[pageKey] || {};
+}
+
+
 // ==========================================================================
 // 기능 1: PDF 템플릿 로드
 // ==========================================================================
@@ -839,7 +864,7 @@ async function generateReportPdf(templateFile, formData) {
         console.log('[generateReportPdf] PDF 생성 시작');
         const pdfDoc = await startPdfGeneration(templateFile, 'PDF 생성 중...');
         const page = getPdfPage(pdfDoc, 0);  // 첫 번째 페이지 (적발 보고서)
-        const coords = PDF_COORDINATES.page1;
+        const coords = getPageCoordinates(1);  // AI 좌표 우선, 수동 좌표 폴백
 
         // =====================================================================
         // Step 2: 일시 데이터 파싱
@@ -973,7 +998,7 @@ async function generateStatementPdf(templateFile, formData, witnesses = []) {
         console.log('[generateStatementPdf] PDF 생성 시작');
         const pdfDoc = await startPdfGeneration(templateFile, '진술서 PDF 생성 중...');
         const page = getPdfPage(pdfDoc, 1);  // 두 번째 페이지 (진술서)
-        const coords = PDF_COORDINATES.page2;
+        const coords = getPageCoordinates(2);  // AI 좌표 우선, 수동 좌표 폴백
 
         // =====================================================================
         // Step 2: 일시 데이터 파싱

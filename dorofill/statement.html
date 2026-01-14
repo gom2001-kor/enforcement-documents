@@ -14,6 +14,11 @@
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <!-- fontkit for custom fonts (Korean support) -->
     <script src="https://unpkg.com/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
+    <!-- PDF.js for PDF to image conversion (Gemini analysis) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
 
     <!-- Google Fonts - Noto Sans KR -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -924,6 +929,9 @@
             window.addEventListener('beforeunload', saveFormData);
         });
     </script>
+
+    <!-- Gemini Analyzer -->
+    <script src="js/gemini-analyzer.js"></script>
 </body>
 
 </html>
