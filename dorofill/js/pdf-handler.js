@@ -380,6 +380,285 @@ function addPage(pdfDoc, width = PDF_CONFIG.pageWidth, height = PDF_CONFIG.pageH
 }
 
 // ==========================================================================
+// 공통 헬퍼 함수: PDF 생성 로직 재사용
+// ==========================================================================
+
+/**
+ * 위반 기준 상수
+ * @constant {Object}
+ */
+const VIOLATION_LIMITS = {
+    AXLE: 11.00,   // 축하중 제한 (톤) - 이 값 초과 시 위반
+    TOTAL: 44.00   // 총중량 제한 (톤) - 이 값 초과 시 위반
+};
+
+/**
+ * PDF 생성 시작 처리
+ * 로딩 인디케이터 표시 및 템플릿 로드
+ * 
+ * @param {File} templateFile - 업로드된 PDF 템플릿
+ * @param {string} loadingMessage - 로딩 메시지
+ * @returns {Promise<PDFLib.PDFDocument>} 로드된 PDF 문서
+ */
+async function startPdfGeneration(templateFile, loadingMessage) {
+    if (typeof showLoading === 'function') {
+        showLoading(loadingMessage);
+    }
+    return await loadPdfTemplate(templateFile);
+}
+
+/**
+ * PDF 생성 완료 처리
+ * 다운로드 및 성공 메시지 표시
+ * 
+ * @param {PDFLib.PDFDocument} pdfDoc - PDF 문서
+ * @param {string} filename - 파일명 (확장자 제외)
+ * @param {string} successMessage - 성공 메시지
+ */
+async function completePdfGeneration(pdfDoc, filename, successMessage) {
+    await downloadPdf(pdfDoc, filename);
+
+    if (typeof hideLoading === 'function') {
+        hideLoading();
+    }
+    if (typeof showToast === 'function') {
+        showToast(successMessage, 'success');
+    }
+}
+
+/**
+ * PDF 생성 오류 처리
+ * 
+ * @param {Error} error - 에러 객체
+ * @param {string} context - 에러 발생 컨텍스트
+ */
+function handlePdfError(error, context) {
+    console.error(`[${context}] PDF 생성 실패:`, error);
+
+    if (typeof hideLoading === 'function') {
+        hideLoading();
+    }
+    if (typeof showToast === 'function') {
+        showToast('PDF 생성 중 오류가 발생했습니다: ' + error.message, 'error');
+    }
+}
+
+/**
+ * 적발 일시 삽입 (년, 월, 일, 시, 분)
+ * 
+ * @param {PDFLib.PDFPage} page - PDF 페이지
+ * @param {Object} datetime - 파싱된 날짜/시간 객체
+ * @param {Object} coords - 좌표 설정 객체
+ */
+async function insertDatetimeFields(page, datetime, coords) {
+    await addTextToPdf(page, datetime.year, coords.dateYear.x, coords.dateYear.y, { size: coords.dateYear.size });
+    await addTextToPdf(page, datetime.month, coords.dateMonth.x, coords.dateMonth.y, { size: coords.dateMonth.size });
+    await addTextToPdf(page, datetime.day, coords.dateDay.x, coords.dateDay.y, { size: coords.dateDay.size });
+    await addTextToPdf(page, datetime.hour, coords.dateHour.x, coords.dateHour.y, { size: coords.dateHour.size });
+    await addTextToPdf(page, datetime.minute, coords.dateMinute.x, coords.dateMinute.y, { size: coords.dateMinute.size });
+}
+
+/**
+ * 차량규격 삽입 (너비, 높이, 길이 - 측정결과 및 위반내역)
+ * 
+ * @param {PDFLib.PDFPage} page - PDF 페이지
+ * @param {Object} formData - 폼 데이터
+ * @param {Object} coords - 좌표 설정 객체
+ */
+async function insertVehicleSpecs(page, formData, coords) {
+    const specFields = ['widthMeasured', 'heightMeasured', 'lengthMeasured',
+        'widthViolation', 'heightViolation', 'lengthViolation'];
+
+    for (const field of specFields) {
+        if (formData[field] && coords[field]) {
+            const value = parseFloat(formData[field]);
+            if (!isNaN(value)) {
+                await addTextToPdf(
+                    page,
+                    value.toFixed(2),
+                    coords[field].x,
+                    coords[field].y,
+                    { size: coords[field].size }
+                );
+            }
+        }
+    }
+}
+
+/**
+ * 축하중 측정값 삽입 (1~8축, 조건부 굵기 + 색상)
+ * 
+ * @param {PDFLib.PDFPage} page - PDF 페이지
+ * @param {Object} formData - 폼 데이터
+ * @param {Object} coords - 좌표 설정 객체
+ * @returns {Promise<number>} 총 측정중량
+ */
+async function insertAxleMeasurements(page, formData, coords) {
+    let totalMeasured = 0;
+
+    for (let i = 1; i <= 8; i++) {
+        const fieldName = `axle${i}Measured`;
+        const axleValue = parseFloat(formData[fieldName]);
+
+        if (!isNaN(axleValue) && axleValue > 0 && coords[fieldName]) {
+            totalMeasured += axleValue;
+            const isViolation = axleValue > VIOLATION_LIMITS.AXLE;
+
+            await addTextToPdf(
+                page,
+                axleValue.toFixed(2),
+                coords[fieldName].x,
+                coords[fieldName].y,
+                {
+                    size: coords[fieldName].size,
+                    isBold: isViolation,
+                    color: isViolation ? PDF_CONFIG.colors.red : PDF_CONFIG.colors.black
+                }
+            );
+        }
+    }
+
+    return totalMeasured;
+}
+
+/**
+ * 축하중 위반내역 삽입 (1~8축)
+ * 
+ * @param {PDFLib.PDFPage} page - PDF 페이지
+ * @param {Object} formData - 폼 데이터
+ * @param {Object} coords - 좌표 설정 객체
+ * @returns {Promise<number>} 총 위반중량
+ */
+async function insertAxleViolations(page, formData, coords) {
+    let totalViolation = 0;
+
+    for (let i = 1; i <= 8; i++) {
+        const fieldName = `axle${i}Violation`;
+        const axleValue = parseFloat(formData[fieldName]);
+
+        if (!isNaN(axleValue) && axleValue > 0 && coords[fieldName]) {
+            totalViolation += axleValue;
+            await addTextToPdf(
+                page,
+                axleValue.toFixed(2),
+                coords[fieldName].x,
+                coords[fieldName].y,
+                { size: coords[fieldName].size }
+            );
+        }
+    }
+
+    return totalViolation;
+}
+
+/**
+ * 총중량 삽입 (측정값 및 위반값, 조건부 굵기 + 색상)
+ * 
+ * @param {PDFLib.PDFPage} page - PDF 페이지
+ * @param {number} totalMeasured - 총 측정중량
+ * @param {number} totalViolation - 총 위반중량
+ * @param {Object} coords - 좌표 설정 객체
+ */
+async function insertTotalWeights(page, totalMeasured, totalViolation, coords) {
+    // 총중량 측정결과
+    if (totalMeasured > 0 && coords.totalWeightMeasured) {
+        const isTotalViolation = totalMeasured > VIOLATION_LIMITS.TOTAL;
+
+        await addTextToPdf(
+            page,
+            totalMeasured.toFixed(2),
+            coords.totalWeightMeasured.x,
+            coords.totalWeightMeasured.y,
+            {
+                size: coords.totalWeightMeasured.size,
+                isBold: isTotalViolation,
+                color: isTotalViolation ? PDF_CONFIG.colors.red : PDF_CONFIG.colors.black
+            }
+        );
+    }
+
+    // 총중량 위반내역
+    if (totalViolation > 0 && coords.totalWeightViolation) {
+        await addTextToPdf(
+            page,
+            totalViolation.toFixed(2),
+            coords.totalWeightViolation.x,
+            coords.totalWeightViolation.y,
+            { size: coords.totalWeightViolation.size }
+        );
+    }
+}
+
+/**
+ * 차량중량 전체 삽입 (측정결과 + 위반내역 + 총중량, 조건부 굵기 적용)
+ * 
+ * @param {PDFLib.PDFPage} page - PDF 페이지
+ * @param {Object} formData - 폼 데이터
+ * @param {Object} coords - 좌표 설정 객체
+ */
+async function insertAxleWeights(page, formData, coords) {
+    // 축하중 측정결과 삽입 및 총합 계산
+    const totalMeasured = await insertAxleMeasurements(page, formData, coords);
+
+    // 축하중 위반내역 삽입 및 총합 계산
+    const totalViolation = await insertAxleViolations(page, formData, coords);
+
+    // 총중량 삽입
+    await insertTotalWeights(page, totalMeasured, totalViolation, coords);
+}
+
+/**
+ * 진술인 정보 삽입 (동적 개수, 최대 3명)
+ * 
+ * @param {PDFLib.PDFPage} page - PDF 페이지
+ * @param {Array<Object>} witnesses - 진술인 배열 [{office, position, name}, ...]
+ * @param {Object} coords - 좌표 설정 객체
+ */
+async function insertWitnesses(page, witnesses, coords) {
+    if (!witnesses || witnesses.length === 0) return;
+
+    const maxWitnesses = Math.min(witnesses.length, 3);
+
+    for (let i = 0; i < maxWitnesses; i++) {
+        const w = witnesses[i];
+        const witnessNum = i + 1;
+
+        // 소속
+        if (w.office && coords[`witness${witnessNum}Office`]) {
+            await addTextToPdf(
+                page,
+                w.office,
+                coords[`witness${witnessNum}Office`].x,
+                coords[`witness${witnessNum}Office`].y,
+                { size: coords[`witness${witnessNum}Office`].size }
+            );
+        }
+
+        // 직급
+        if (w.position && coords[`witness${witnessNum}Position`]) {
+            await addTextToPdf(
+                page,
+                w.position,
+                coords[`witness${witnessNum}Position`].x,
+                coords[`witness${witnessNum}Position`].y,
+                { size: coords[`witness${witnessNum}Position`].size }
+            );
+        }
+
+        // 성명
+        if (w.name && coords[`witness${witnessNum}Name`]) {
+            await addTextToPdf(
+                page,
+                w.name,
+                coords[`witness${witnessNum}Name`].x,
+                coords[`witness${witnessNum}Name`].y,
+                { size: coords[`witness${witnessNum}Name`].size }
+            );
+        }
+    }
+}
+
+// ==========================================================================
 // 기능 5: 적발 보고서 PDF 생성 (메인 함수)
 // ==========================================================================
 
@@ -422,54 +701,33 @@ function addPage(pdfDoc, width = PDF_CONFIG.pageWidth, height = PDF_CONFIG.pageH
  * await generateReportPdf(templateFile, formData);
  */
 async function generateReportPdf(templateFile, formData) {
-    // =========================================================================
-    // 위반 기준 상수 정의
-    // =========================================================================
-    const AXLE_LIMIT = 11.00;   // 축하중 제한 (톤) - 이 값 초과 시 굵게 표시
-    const TOTAL_LIMIT = 44.00;  // 총중량 제한 (톤) - 이 값 초과 시 굵게 표시
-
     try {
         // =====================================================================
-        // Step 1: 로딩 인디케이터 표시
+        // Step 1: PDF 생성 시작 (로딩 + 템플릿 로드)
         // =====================================================================
-        if (typeof showLoading === 'function') {
-            showLoading('PDF 생성 중...');
-        }
-
-        // =====================================================================
-        // Step 2: PDF 템플릿 로드
-        // =====================================================================
-        console.log('[generateReportPdf] PDF 템플릿 로드 시작');
-        const pdfDoc = await loadPdfTemplate(templateFile);
+        console.log('[generateReportPdf] PDF 생성 시작');
+        const pdfDoc = await startPdfGeneration(templateFile, 'PDF 생성 중...');
         const page = getPdfPage(pdfDoc, 0);  // 첫 번째 페이지 (적발 보고서)
         const coords = PDF_COORDINATES.page1;
 
         // =====================================================================
-        // Step 3: 일시 데이터 파싱
-        // datetime-local 값을 년/월/일/시/분으로 분리
+        // Step 2: 일시 데이터 파싱
         // =====================================================================
         const datetime = parseDatetimeForPdf(formData.reportDatetime);
         const authorDate = parseDateForPdf(formData.authorDate);
 
         // =====================================================================
-        // Step 4: 기본 정보 삽입
+        // Step 3: 기본 정보 삽입 (적발 일시 + 장소)
         // =====================================================================
         console.log('[generateReportPdf] 기본 정보 삽입 중');
+        await insertDatetimeFields(page, datetime, coords);
 
-        // 적발 일시 (년, 월, 일, 시, 분 분리 입력)
-        await addTextToPdf(page, datetime.year, coords.dateYear.x, coords.dateYear.y, { size: coords.dateYear.size });
-        await addTextToPdf(page, datetime.month, coords.dateMonth.x, coords.dateMonth.y, { size: coords.dateMonth.size });
-        await addTextToPdf(page, datetime.day, coords.dateDay.x, coords.dateDay.y, { size: coords.dateDay.size });
-        await addTextToPdf(page, datetime.hour, coords.dateHour.x, coords.dateHour.y, { size: coords.dateHour.size });
-        await addTextToPdf(page, datetime.minute, coords.dateMinute.x, coords.dateMinute.y, { size: coords.dateMinute.size });
-
-        // 적발 장소
         if (formData.reportLocation) {
             await addTextToPdf(page, formData.reportLocation, coords.location.x, coords.location.y, { size: coords.location.size });
         }
 
         // =====================================================================
-        // Step 5: 운전자 정보 삽입
+        // Step 4: 운전자 정보 삽입
         // =====================================================================
         console.log('[generateReportPdf] 운전자 정보 삽입 중');
 
@@ -487,7 +745,7 @@ async function generateReportPdf(templateFile, formData) {
         }
 
         // =====================================================================
-        // Step 6: 차량 정보 삽입
+        // Step 5: 차량 정보 삽입
         // =====================================================================
         console.log('[generateReportPdf] 차량 정보 삽입 중');
 
@@ -505,120 +763,19 @@ async function generateReportPdf(templateFile, formData) {
         }
 
         // =====================================================================
-        // Step 7: 차량규격 삽입 (너비, 높이, 길이)
+        // Step 6: 차량규격 삽입 (너비, 높이, 길이) - 공통 헬퍼 사용
         // =====================================================================
         console.log('[generateReportPdf] 차량규격 삽입 중');
-
-        const specFields = ['widthMeasured', 'heightMeasured', 'lengthMeasured',
-            'widthViolation', 'heightViolation', 'lengthViolation'];
-
-        for (const field of specFields) {
-            if (formData[field] && coords[field]) {
-                const value = parseFloat(formData[field]);
-                if (!isNaN(value)) {
-                    // 차량규격은 m 단위, 위반 여부와 무관하게 일반 글씨로 표시
-                    await addTextToPdf(
-                        page,
-                        value.toFixed(2),
-                        coords[field].x,
-                        coords[field].y,
-                        { size: coords[field].size }
-                    );
-                }
-            }
-        }
+        await insertVehicleSpecs(page, formData, coords);
 
         // =====================================================================
-        // Step 8: 차량중량 측정결과 삽입 (조건부 굵기 적용)
-        // 축하중이 11.00톤을 초과하면 굵은 글씨로 표시
+        // Step 7: 차량중량 삽입 (측정결과 + 위반내역 + 총중량) - 공통 헬퍼 사용
         // =====================================================================
-        console.log('[generateReportPdf] 차량중량 측정결과 삽입 중');
-
-        let totalMeasured = 0;  // 총중량 계산용
-
-        for (let i = 1; i <= 8; i++) {
-            const fieldName = `axle${i}Measured`;
-            const axleValue = parseFloat(formData[fieldName]);
-
-            if (!isNaN(axleValue) && axleValue > 0 && coords[fieldName]) {
-                // 축하중 누적 (총중량 계산)
-                totalMeasured += axleValue;
-
-                // 위반 여부 판단: 11.00톤 초과 시 굵게
-                const isViolation = axleValue > AXLE_LIMIT;
-
-                await addTextToPdf(
-                    page,
-                    axleValue.toFixed(2),
-                    coords[fieldName].x,
-                    coords[fieldName].y,
-                    {
-                        size: coords[fieldName].size,
-                        isBold: isViolation,  // 초과 시 굵은 글씨
-                        color: isViolation ? PDF_CONFIG.colors.red : PDF_CONFIG.colors.black
-                    }
-                );
-            }
-        }
+        console.log('[generateReportPdf] 차량중량 삽입 중');
+        await insertAxleWeights(page, formData, coords);
 
         // =====================================================================
-        // Step 9: 총중량 측정결과 삽입 (조건부 굵기 적용)
-        // 총중량이 44.00톤을 초과하면 굵은 글씨로 표시
-        // =====================================================================
-        if (totalMeasured > 0 && coords.totalWeightMeasured) {
-            const isTotalViolation = totalMeasured > TOTAL_LIMIT;
-
-            await addTextToPdf(
-                page,
-                totalMeasured.toFixed(2),
-                coords.totalWeightMeasured.x,
-                coords.totalWeightMeasured.y,
-                {
-                    size: coords.totalWeightMeasured.size,
-                    isBold: isTotalViolation,  // 초과 시 굵은 글씨
-                    color: isTotalViolation ? PDF_CONFIG.colors.red : PDF_CONFIG.colors.black
-                }
-            );
-        }
-
-        // =====================================================================
-        // Step 10: 차량중량 위반내역 삽입
-        // 위반내역은 모두 유효한 값이므로 일반 글씨로만 표시
-        // =====================================================================
-        console.log('[generateReportPdf] 차량중량 위반내역 삽입 중');
-
-        let totalViolation = 0;  // 위반 총중량 계산용
-
-        for (let i = 1; i <= 8; i++) {
-            const fieldName = `axle${i}Violation`;
-            const axleValue = parseFloat(formData[fieldName]);
-
-            if (!isNaN(axleValue) && axleValue > 0 && coords[fieldName]) {
-                totalViolation += axleValue;
-
-                await addTextToPdf(
-                    page,
-                    axleValue.toFixed(2),
-                    coords[fieldName].x,
-                    coords[fieldName].y,
-                    { size: coords[fieldName].size }
-                );
-            }
-        }
-
-        // 위반 총중량
-        if (totalViolation > 0 && coords.totalWeightViolation) {
-            await addTextToPdf(
-                page,
-                totalViolation.toFixed(2),
-                coords.totalWeightViolation.x,
-                coords.totalWeightViolation.y,
-                { size: coords.totalWeightViolation.size }
-            );
-        }
-
-        // =====================================================================
-        // Step 11: 작성자 정보 삽입
+        // Step 8: 작성자 정보 삽입
         // =====================================================================
         console.log('[generateReportPdf] 작성자 정보 삽입 중');
 
@@ -639,38 +796,15 @@ async function generateReportPdf(templateFile, formData) {
         }
 
         // =====================================================================
-        // Step 12: PDF 다운로드
+        // Step 9: PDF 생성 완료 (다운로드 + 성공 메시지)
         // =====================================================================
         console.log('[generateReportPdf] PDF 다운로드 시작');
-
-        // 파일명 생성: 적발보고서_YYYYMMDD.pdf
-        await downloadPdf(pdfDoc, '적발보고서');
-
-        // =====================================================================
-        // Step 13: 성공 메시지 및 로딩 숨김
-        // =====================================================================
-        if (typeof hideLoading === 'function') {
-            hideLoading();
-        }
-        if (typeof showToast === 'function') {
-            showToast('PDF가 생성되었습니다!', 'success');
-        }
+        await completePdfGeneration(pdfDoc, '적발보고서', 'PDF가 생성되었습니다!');
 
         console.log('[generateReportPdf] 적발 보고서 PDF 생성 완료');
 
     } catch (error) {
-        // =====================================================================
-        // 오류 처리
-        // =====================================================================
-        console.error('[generateReportPdf] PDF 생성 실패:', error);
-
-        if (typeof hideLoading === 'function') {
-            hideLoading();
-        }
-        if (typeof showToast === 'function') {
-            showToast('PDF 생성 중 오류가 발생했습니다: ' + error.message, 'error');
-        }
-
+        handlePdfError(error, 'generateReportPdf');
         throw error;
     }
 }
@@ -701,28 +835,17 @@ async function generateReportPdf(templateFile, formData) {
  * await generateStatementPdf(templateFile, formData, witnesses);
  */
 async function generateStatementPdf(templateFile, formData, witnesses = []) {
-    // 위반 기준 상수
-    const AXLE_LIMIT = 11.00;
-    const TOTAL_LIMIT = 44.00;
-
     try {
         // =====================================================================
-        // Step 1: 로딩 인디케이터 표시
+        // Step 1: PDF 생성 시작 (로딩 + 템플릿 로드)
         // =====================================================================
-        if (typeof showLoading === 'function') {
-            showLoading('진술서 PDF 생성 중...');
-        }
-
-        // =====================================================================
-        // Step 2: PDF 템플릿 로드
-        // =====================================================================
-        console.log('[generateStatementPdf] PDF 템플릿 로드 시작');
-        const pdfDoc = await loadPdfTemplate(templateFile);
+        console.log('[generateStatementPdf] PDF 생성 시작');
+        const pdfDoc = await startPdfGeneration(templateFile, '진술서 PDF 생성 중...');
         const page = getPdfPage(pdfDoc, 1);  // 두 번째 페이지 (진술서)
         const coords = PDF_COORDINATES.page2;
 
         // =====================================================================
-        // Step 3: 일시 데이터 파싱
+        // Step 2: 일시 데이터 파싱
         // =====================================================================
         const datetime = parseDatetimeForPdf(formData.reportDatetime);
 
@@ -735,24 +858,17 @@ async function generateStatementPdf(templateFile, formData, witnesses = []) {
         };
 
         // =====================================================================
-        // Step 4: 기본 정보 삽입
+        // Step 3: 기본 정보 삽입 (적발 일시 + 장소)
         // =====================================================================
         console.log('[generateStatementPdf] 기본 정보 삽입 중');
+        await insertDatetimeFields(page, datetime, coords);
 
-        // 적발 일시
-        await addTextToPdf(page, datetime.year, coords.dateYear.x, coords.dateYear.y, { size: coords.dateYear.size });
-        await addTextToPdf(page, datetime.month, coords.dateMonth.x, coords.dateMonth.y, { size: coords.dateMonth.size });
-        await addTextToPdf(page, datetime.day, coords.dateDay.x, coords.dateDay.y, { size: coords.dateDay.size });
-        await addTextToPdf(page, datetime.hour, coords.dateHour.x, coords.dateHour.y, { size: coords.dateHour.size });
-        await addTextToPdf(page, datetime.minute, coords.dateMinute.x, coords.dateMinute.y, { size: coords.dateMinute.size });
-
-        // 적발 장소
         if (formData.reportLocation) {
             await addTextToPdf(page, formData.reportLocation, coords.location.x, coords.location.y, { size: coords.location.size });
         }
 
         // =====================================================================
-        // Step 5: 차량 정보 삽입
+        // Step 4: 차량 정보 삽입
         // =====================================================================
         console.log('[generateStatementPdf] 차량 정보 삽입 중');
 
@@ -764,167 +880,41 @@ async function generateStatementPdf(templateFile, formData, witnesses = []) {
         }
 
         // =====================================================================
-        // Step 6: 차량규격 삽입
+        // Step 5: 차량규격 삽입 (너비, 높이, 길이) - 공통 헬퍼 사용
         // =====================================================================
         console.log('[generateStatementPdf] 차량규격 삽입 중');
-
-        const specFields = ['widthMeasured', 'heightMeasured', 'lengthMeasured',
-            'widthViolation', 'heightViolation', 'lengthViolation'];
-
-        for (const field of specFields) {
-            if (formData[field] && coords[field]) {
-                const value = parseFloat(formData[field]);
-                if (!isNaN(value)) {
-                    await addTextToPdf(page, value.toFixed(2), coords[field].x, coords[field].y, { size: coords[field].size });
-                }
-            }
-        }
+        await insertVehicleSpecs(page, formData, coords);
 
         // =====================================================================
-        // Step 7: 차량중량 삽입 (조건부 굵기 적용)
+        // Step 6: 차량중량 삽입 (측정결과 + 위반내역 + 총중량) - 공통 헬퍼 사용
         // =====================================================================
         console.log('[generateStatementPdf] 차량중량 삽입 중');
-
-        let totalMeasured = 0;
-        let totalViolation = 0;
-
-        // 측정결과 (1~8축)
-        for (let i = 1; i <= 8; i++) {
-            const measuredField = `axle${i}Measured`;
-            const measuredValue = parseFloat(formData[measuredField]);
-
-            if (!isNaN(measuredValue) && measuredValue > 0 && coords[measuredField]) {
-                totalMeasured += measuredValue;
-                const isViolation = measuredValue > AXLE_LIMIT;
-
-                await addTextToPdf(
-                    page,
-                    measuredValue.toFixed(2),
-                    coords[measuredField].x,
-                    coords[measuredField].y,
-                    {
-                        size: coords[measuredField].size,
-                        isBold: isViolation,
-                        color: isViolation ? PDF_CONFIG.colors.red : PDF_CONFIG.colors.black
-                    }
-                );
-            }
-
-            // 위반내역
-            const violationField = `axle${i}Violation`;
-            const violationValue = parseFloat(formData[violationField]);
-
-            if (!isNaN(violationValue) && violationValue > 0 && coords[violationField]) {
-                totalViolation += violationValue;
-                await addTextToPdf(page, violationValue.toFixed(2), coords[violationField].x, coords[violationField].y, { size: coords[violationField].size });
-            }
-        }
-
-        // 총중량 삽입
-        if (totalMeasured > 0 && coords.totalWeightMeasured) {
-            const isTotalViolation = totalMeasured > TOTAL_LIMIT;
-            await addTextToPdf(
-                page,
-                totalMeasured.toFixed(2),
-                coords.totalWeightMeasured.x,
-                coords.totalWeightMeasured.y,
-                {
-                    size: coords.totalWeightMeasured.size,
-                    isBold: isTotalViolation,
-                    color: isTotalViolation ? PDF_CONFIG.colors.red : PDF_CONFIG.colors.black
-                }
-            );
-        }
-
-        if (totalViolation > 0 && coords.totalWeightViolation) {
-            await addTextToPdf(page, totalViolation.toFixed(2), coords.totalWeightViolation.x, coords.totalWeightViolation.y, { size: coords.totalWeightViolation.size });
-        }
+        await insertAxleWeights(page, formData, coords);
 
         // =====================================================================
-        // Step 8: 진술 작성일 삽입 (오늘 날짜)
+        // Step 7: 진술 작성일 삽입 (오늘 날짜)
         // =====================================================================
         console.log('[generateStatementPdf] 진술 작성일 삽입 중');
-
         await addTextToPdf(page, statementDate.year, coords.statementYear.x, coords.statementYear.y, { size: coords.statementYear.size });
         await addTextToPdf(page, statementDate.month, coords.statementMonth.x, coords.statementMonth.y, { size: coords.statementMonth.size });
         await addTextToPdf(page, statementDate.day, coords.statementDay.x, coords.statementDay.y, { size: coords.statementDay.size });
 
         // =====================================================================
-        // Step 9: 진술인 정보 삽입 (최대 3명)
+        // Step 8: 진술인 정보 삽입 (최대 3명) - 공통 헬퍼 사용
         // =====================================================================
         console.log('[generateStatementPdf] 진술인 정보 삽입 중');
-
-        if (witnesses && witnesses.length > 0) {
-            // 최대 3명까지만 PDF에 삽입
-            const maxWitnesses = Math.min(witnesses.length, 3);
-
-            for (let i = 0; i < maxWitnesses; i++) {
-                const w = witnesses[i];
-                const witnessNum = i + 1;
-
-                // 소속
-                if (w.office && coords[`witness${witnessNum}Office`]) {
-                    await addTextToPdf(
-                        page,
-                        w.office,
-                        coords[`witness${witnessNum}Office`].x,
-                        coords[`witness${witnessNum}Office`].y,
-                        { size: coords[`witness${witnessNum}Office`].size }
-                    );
-                }
-
-                // 직급
-                if (w.position && coords[`witness${witnessNum}Position`]) {
-                    await addTextToPdf(
-                        page,
-                        w.position,
-                        coords[`witness${witnessNum}Position`].x,
-                        coords[`witness${witnessNum}Position`].y,
-                        { size: coords[`witness${witnessNum}Position`].size }
-                    );
-                }
-
-                // 성명
-                if (w.name && coords[`witness${witnessNum}Name`]) {
-                    await addTextToPdf(
-                        page,
-                        w.name,
-                        coords[`witness${witnessNum}Name`].x,
-                        coords[`witness${witnessNum}Name`].y,
-                        { size: coords[`witness${witnessNum}Name`].size }
-                    );
-                }
-            }
-        }
+        await insertWitnesses(page, witnesses, coords);
 
         // =====================================================================
-        // Step 10: PDF 다운로드
+        // Step 9: PDF 생성 완료 (다운로드 + 성공 메시지)
         // =====================================================================
         console.log('[generateStatementPdf] PDF 다운로드 시작');
-        await downloadPdf(pdfDoc, '위반진술서');
-
-        // =====================================================================
-        // Step 11: 성공 메시지 및 로딩 숨김
-        // =====================================================================
-        if (typeof hideLoading === 'function') {
-            hideLoading();
-        }
-        if (typeof showToast === 'function') {
-            showToast('진술서 PDF가 생성되었습니다!', 'success');
-        }
+        await completePdfGeneration(pdfDoc, '위반진술서', '진술서 PDF가 생성되었습니다!');
 
         console.log('[generateStatementPdf] 진술서 PDF 생성 완료');
 
     } catch (error) {
-        console.error('[generateStatementPdf] PDF 생성 실패:', error);
-
-        if (typeof hideLoading === 'function') {
-            hideLoading();
-        }
-        if (typeof showToast === 'function') {
-            showToast('PDF 생성 중 오류가 발생했습니다: ' + error.message, 'error');
-        }
-
+        handlePdfError(error, 'generateStatementPdf');
         throw error;
     }
 }
