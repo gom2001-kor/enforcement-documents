@@ -659,6 +659,291 @@ function collectAndValidateForm(formType) {
 }
 
 // ==========================================================================
+// Local Storage Auto-Save & Restore
+// ==========================================================================
+
+/** 자동 저장 인터벌 ID (중복 방지용) */
+let autoSaveIntervalId = null;
+
+/** 자동 저장 설정 */
+const AUTO_SAVE_CONFIG = {
+    interval: 5000,  // 5초마다 저장
+    prefix: 'dorofill_',
+    suffix: '_autosave'
+};
+
+/**
+ * 현재 페이지의 폼 타입 판단
+ * @returns {string|null} 'report', 'statement', 또는 null
+ */
+function getCurrentFormType() {
+    const path = window.location.pathname.toLowerCase();
+    if (path.includes('report')) return 'report';
+    if (path.includes('statement')) return 'statement';
+    return null;
+}
+
+/**
+ * 자동 저장 키 생성
+ * @param {string} formType - 폼 타입
+ * @returns {string} 스토리지 키
+ */
+function getAutoSaveKey(formType) {
+    return `${AUTO_SAVE_CONFIG.prefix}${formType}${AUTO_SAVE_CONFIG.suffix}`;
+}
+
+/**
+ * 폼 데이터를 localStorage에 저장
+ * @param {string} formType - 'report' 또는 'statement'
+ * @returns {boolean} 저장 성공 여부
+ */
+function saveFormData(formType) {
+    if (!formType) return false;
+
+    try {
+        const data = collectFormData(formType);
+        const key = getAutoSaveKey(formType);
+
+        // 타임스탬프 추가
+        data._savedAt = new Date().toISOString();
+
+        localStorage.setItem(key, JSON.stringify(data));
+        console.log(`[자동 저장] ${new Date().toLocaleTimeString()}`);
+        return true;
+    } catch (error) {
+        console.error('[자동 저장] 저장 실패:', error);
+        return false;
+    }
+}
+
+/**
+ * 5초마다 폼 데이터를 localStorage에 저장
+ * @param {string} formType - 'report' 또는 'statement'
+ * @returns {number} interval ID
+ */
+function startAutoSave(formType) {
+    if (!formType) return null;
+
+    // 기존 인터벌 정리
+    if (autoSaveIntervalId) {
+        clearInterval(autoSaveIntervalId);
+    }
+
+    // 즉시 한 번 저장
+    saveFormData(formType);
+
+    // 주기적 저장 시작
+    autoSaveIntervalId = setInterval(() => {
+        saveFormData(formType);
+    }, AUTO_SAVE_CONFIG.interval);
+
+    console.log(`[자동 저장] 시작됨 (${AUTO_SAVE_CONFIG.interval / 1000}초 간격)`);
+    return autoSaveIntervalId;
+}
+
+/**
+ * 자동 저장 중지
+ */
+function stopAutoSave() {
+    if (autoSaveIntervalId) {
+        clearInterval(autoSaveIntervalId);
+        autoSaveIntervalId = null;
+        console.log('[자동 저장] 중지됨');
+    }
+}
+
+/**
+ * 저장된 데이터가 있는지 확인
+ * @param {string} formType - 폼 타입
+ * @returns {Object|null} 저장된 데이터 또는 null
+ */
+function getSavedFormData(formType) {
+    if (!formType) return null;
+
+    try {
+        const key = getAutoSaveKey(formType);
+        const savedData = localStorage.getItem(key);
+
+        if (!savedData) return null;
+
+        const data = JSON.parse(savedData);
+        return data;
+    } catch (error) {
+        console.error('[자동 저장] 데이터 읽기 실패:', error);
+        return null;
+    }
+}
+
+/**
+ * 저장된 데이터를 폼에 복원
+ * @param {string} formType - 폼 타입
+ * @param {Object} data - 복원할 데이터 (없으면 localStorage에서 가져옴)
+ * @returns {boolean} 복원 성공 여부
+ */
+function restoreFormData(formType, data = null) {
+    if (!formType) return false;
+
+    try {
+        const savedData = data || getSavedFormData(formType);
+        if (!savedData) return false;
+
+        // 각 필드에 값 채우기
+        Object.keys(savedData).forEach(fieldId => {
+            // 내부 필드(_로 시작) 건너뛰기
+            if (fieldId.startsWith('_')) return;
+            // 배열(witnesses)은 별도 처리
+            if (fieldId === 'witnesses') return;
+
+            const element = document.getElementById(fieldId);
+            if (element && savedData[fieldId]) {
+                element.value = savedData[fieldId];
+            }
+        });
+
+        // 진술인 복원 (statement인 경우)
+        if (formType === 'statement' && savedData.witnesses && savedData.witnesses.length > 0) {
+            restoreWitnesses(savedData.witnesses);
+        }
+
+        // 복원 후 계산 트리거
+        setTimeout(() => {
+            triggerCalculationsAfterRestore();
+        }, 100);
+
+        return true;
+    } catch (error) {
+        console.error('[자동 저장] 복원 실패:', error);
+        return false;
+    }
+}
+
+/**
+ * 진술인 데이터 복원
+ * @param {Array<Object>} witnesses - 진술인 배열
+ */
+function restoreWitnesses(witnesses) {
+    if (!witnesses || !Array.isArray(witnesses)) return;
+
+    witnesses.forEach((witness, index) => {
+        const witnessIndex = index + 1;
+
+        // 진술인 카드가 있는지 확인, 없으면 추가 필요
+        const officeInput = document.getElementById(`witness${witnessIndex}Office`);
+        const positionInput = document.getElementById(`witness${witnessIndex}Position`);
+        const nameInput = document.getElementById(`witness${witnessIndex}Name`);
+
+        if (officeInput) officeInput.value = witness.office || '';
+        if (positionInput) positionInput.value = witness.position || '';
+        if (nameInput) nameInput.value = witness.name || '';
+    });
+}
+
+/**
+ * 복원 후 계산 트리거
+ */
+function triggerCalculationsAfterRestore() {
+    // 축하중 입력 필드에 input 이벤트 발생시켜 총중량 재계산
+    for (let i = 1; i <= 8; i++) {
+        const measured = document.getElementById(`axle${i}Measured`);
+        const violation = document.getElementById(`axle${i}Violation`);
+
+        if (measured && measured.value) {
+            measured.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        if (violation && violation.value) {
+            violation.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+
+    // 위반 체크도 실행
+    if (typeof VALIDATOR !== 'undefined' && VALIDATOR.bindViolationChecks) {
+        // 이미 바인딩됨, 값만 체크
+        const totalMeasured = document.getElementById('totalWeightMeasured');
+        const totalViolation = document.getElementById('totalWeightViolation');
+
+        if (totalMeasured && totalMeasured.value) {
+            totalMeasured.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        if (totalViolation && totalViolation.value) {
+            totalViolation.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+}
+
+/**
+ * 저장된 데이터 삭제 (PDF 생성 완료 후 호출)
+ * @param {string} formType - 폼 타입
+ */
+function clearSavedFormData(formType) {
+    if (!formType) return;
+
+    try {
+        const key = getAutoSaveKey(formType);
+        localStorage.removeItem(key);
+        console.log('[자동 저장] 데이터 삭제됨');
+    } catch (error) {
+        console.error('[자동 저장] 삭제 실패:', error);
+    }
+}
+
+/**
+ * 저장된 데이터 복원 확인 모달 표시
+ * @param {string} formType - 폼 타입
+ * @param {Object} savedData - 저장된 데이터
+ */
+function showRestoreConfirmation(formType, savedData) {
+    // 저장 시간 포맷팅
+    let savedTimeText = '';
+    if (savedData._savedAt) {
+        const savedDate = new Date(savedData._savedAt);
+        savedTimeText = `저장 시간: ${savedDate.toLocaleDateString('ko-KR')} ${savedDate.toLocaleTimeString('ko-KR')}`;
+    }
+
+    const formTypeName = formType === 'report' ? '적발 보고서' : '위반 진술서';
+
+    showConfirm(
+        `이전에 작성 중이던 ${formTypeName} 데이터가 있습니다.\n${savedTimeText}\n\n불러오시겠습니까?`,
+        () => {
+            // 확인: 데이터 복원
+            if (restoreFormData(formType, savedData)) {
+                showToast('이전 작성 내용을 불러왔습니다.', 'success');
+            } else {
+                showToast('데이터 복원에 실패했습니다.', 'error');
+            }
+        },
+        () => {
+            // 취소: 새로 시작
+            clearSavedFormData(formType);
+            showToast('새로운 문서를 작성합니다.', 'info');
+        }
+    );
+}
+
+/**
+ * 페이지 로드 시 자동 저장/복원 초기화
+ * @param {string} formType - 폼 타입
+ */
+function initializeAutoSave(formType) {
+    if (!formType) return;
+
+    // 저장된 데이터 확인
+    const savedData = getSavedFormData(formType);
+
+    if (savedData) {
+        // 복원 확인 모달 표시
+        showRestoreConfirmation(formType, savedData);
+    }
+
+    // 자동 저장 시작
+    startAutoSave(formType);
+
+    // 페이지 떠날 때 저장
+    window.addEventListener('beforeunload', () => {
+        saveFormData(formType);
+    });
+}
+
+// ==========================================================================
 // Initialization
 // ==========================================================================
 
@@ -681,6 +966,15 @@ document.addEventListener('DOMContentLoaded', () => {
             input.value = formatTimeInput(now);
         }
     });
+
+    // 자동 저장/복원 초기화 (report 또는 statement 페이지에서만)
+    const formType = getCurrentFormType();
+    if (formType) {
+        // 약간의 지연 후 초기화 (다른 스크립트 로드 완료 대기)
+        setTimeout(() => {
+            initializeAutoSave(formType);
+        }, 500);
+    }
 });
 
 // ==========================================================================
