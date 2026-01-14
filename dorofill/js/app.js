@@ -944,6 +944,218 @@ function initializeAutoSave(formType) {
 }
 
 // ==========================================================================
+// Data Sharing Between Documents (적발 보고서 <-> 진술서)
+// ==========================================================================
+
+/** 공유 데이터 스토리지 키 */
+const SHARED_DATA_KEY = 'dorofill_shared_report';
+
+/**
+ * 공유할 필드 목록 정의
+ */
+const SHARED_FIELDS = {
+    // 기본 정보
+    basic: ['reportDatetime', 'reportLocation', 'vehicleType', 'plateNumber'],
+
+    // 차량규격
+    dimensions: [
+        'widthMeasured', 'heightMeasured', 'lengthMeasured',
+        'widthViolation', 'heightViolation', 'lengthViolation',
+        'widthAllowed', 'heightAllowed', 'lengthAllowed'
+    ],
+
+    // 차량중량 (축하중)
+    getAxleFields: () => {
+        const fields = [];
+        for (let i = 1; i <= 8; i++) {
+            fields.push(`axle${i}Measured`, `axle${i}Violation`);
+        }
+        return fields;
+    },
+
+    // 총중량
+    totalWeight: ['totalWeightMeasured', 'totalWeightViolation']
+};
+
+/**
+ * 모든 공유 필드 목록 가져오기
+ * @returns {Array<string>} 공유 필드 ID 배열
+ */
+function getAllSharedFields() {
+    return [
+        ...SHARED_FIELDS.basic,
+        ...SHARED_FIELDS.dimensions,
+        ...SHARED_FIELDS.getAxleFields(),
+        ...SHARED_FIELDS.totalWeight
+    ];
+}
+
+/**
+ * 적발 보고서 데이터를 진술서에서 사용할 수 있도록 저장
+ * PDF 생성 성공 시 호출됨
+ * @param {Object} formData - 적발 보고서 폼 데이터
+ */
+function saveReportForSharing(formData) {
+    try {
+        const sharedData = {
+            // 기본 정보
+            datetime: formData.datetime || formData.reportDatetime,
+            location: formData.location || formData.reportLocation,
+            vehicleType: formData.vehicleType,
+            plateNumber: formData.plateNumber,
+
+            // 차량규격
+            widthMeasured: formData.widthMeasured,
+            heightMeasured: formData.heightMeasured,
+            lengthMeasured: formData.lengthMeasured,
+            widthViolation: formData.widthViolation,
+            heightViolation: formData.heightViolation,
+            lengthViolation: formData.lengthViolation,
+            widthAllowed: formData.widthAllowed,
+            heightAllowed: formData.heightAllowed,
+            lengthAllowed: formData.lengthAllowed,
+
+            // 메타데이터
+            _sharedAt: new Date().toISOString(),
+            _source: 'report'
+        };
+
+        // 축하중 복사
+        for (let i = 1; i <= 8; i++) {
+            sharedData[`axle${i}Measured`] = formData[`axle${i}Measured`];
+            sharedData[`axle${i}Violation`] = formData[`axle${i}Violation`];
+        }
+
+        // 총중량
+        sharedData.totalWeightMeasured = formData.totalWeightMeasured;
+        sharedData.totalWeightViolation = formData.totalWeightViolation;
+
+        localStorage.setItem(SHARED_DATA_KEY, JSON.stringify(sharedData));
+        console.log('[데이터 공유] 적발 보고서 데이터 저장됨');
+
+        return true;
+    } catch (error) {
+        console.error('[데이터 공유] 저장 실패:', error);
+        return false;
+    }
+}
+
+/**
+ * 공유된 적발 보고서 데이터 가져오기
+ * @returns {Object|null} 공유된 데이터 또는 null
+ */
+function getSharedReportData() {
+    try {
+        const savedData = localStorage.getItem(SHARED_DATA_KEY);
+        if (!savedData) return null;
+        return JSON.parse(savedData);
+    } catch (error) {
+        console.error('[데이터 공유] 데이터 읽기 실패:', error);
+        return null;
+    }
+}
+
+/**
+ * 공유된 적발 보고서 데이터 존재 여부 확인
+ * @returns {boolean} 데이터 존재 여부
+ */
+function hasSharedReportData() {
+    return getSharedReportData() !== null;
+}
+
+/**
+ * 공유된 적발 보고서 데이터를 진술서 폼에 불러오기
+ * statement.html의 [최근 적발 건 불러오기] 버튼에서 호출
+ * @returns {boolean} 성공 여부
+ */
+function loadSharedReportData() {
+    const savedData = getSharedReportData();
+
+    if (!savedData) {
+        showToast('불러올 적발 보고서 데이터가 없습니다.', 'warning');
+        return false;
+    }
+
+    try {
+        let loadedCount = 0;
+
+        // 기본 정보 매핑 (필드명이 다를 수 있음)
+        const fieldMappings = {
+            'datetime': 'reportDatetime',
+            'location': 'reportLocation'
+        };
+
+        // 기본 정보 채우기
+        Object.entries(fieldMappings).forEach(([sourceKey, targetId]) => {
+            const element = document.getElementById(targetId);
+            if (element && savedData[sourceKey]) {
+                element.value = savedData[sourceKey];
+                loadedCount++;
+            }
+        });
+
+        // 나머지 공유 필드 채우기
+        getAllSharedFields().forEach(fieldId => {
+            const element = document.getElementById(fieldId);
+            if (element && savedData[fieldId]) {
+                element.value = savedData[fieldId];
+                loadedCount++;
+            }
+        });
+
+        // 복원 후 계산 트리거
+        setTimeout(() => {
+            triggerCalculationsAfterRestore();
+        }, 100);
+
+        // 저장 시간 정보 표시
+        if (savedData._sharedAt) {
+            const sharedDate = new Date(savedData._sharedAt);
+            const timeStr = sharedDate.toLocaleString('ko-KR');
+            showToast(`${loadedCount}개 필드를 불러왔습니다. (${timeStr})`, 'success');
+        } else {
+            showToast(`적발 보고서 데이터를 불러왔습니다. (${loadedCount}개 필드)`, 'success');
+        }
+
+        return true;
+
+    } catch (error) {
+        console.error('[데이터 공유] 불러오기 실패:', error);
+        showToast('데이터를 불러오는 중 오류가 발생했습니다.', 'error');
+        return false;
+    }
+}
+
+/**
+ * 공유된 데이터 삭제
+ */
+function clearSharedReportData() {
+    try {
+        localStorage.removeItem(SHARED_DATA_KEY);
+        console.log('[데이터 공유] 공유 데이터 삭제됨');
+    } catch (error) {
+        console.error('[데이터 공유] 삭제 실패:', error);
+    }
+}
+
+/**
+ * 공유 데이터 정보 표시 (디버그용)
+ */
+function getSharedDataInfo() {
+    const data = getSharedReportData();
+    if (!data) {
+        return { exists: false, message: '공유된 데이터 없음' };
+    }
+
+    return {
+        exists: true,
+        plateNumber: data.plateNumber || '미입력',
+        datetime: data.datetime || data.reportDatetime || '미입력',
+        sharedAt: data._sharedAt ? new Date(data._sharedAt).toLocaleString('ko-KR') : '알 수 없음'
+    };
+}
+
+// ==========================================================================
 // Initialization
 // ==========================================================================
 
