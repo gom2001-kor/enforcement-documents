@@ -1256,10 +1256,12 @@ function loadSharedReportData() {
     try {
         let loadedCount = 0;
 
-        // 기본 정보 매핑 (필드명이 다를 수 있음)
+        // 기본 정보 매핑 (저장된 키 → HTML 요소 ID)
         const fieldMappings = {
             'datetime': 'reportDatetime',
-            'location': 'reportLocation'
+            'location': 'reportLocation',
+            'vehicleType': 'vehicleType',
+            'plateNumber': 'plateNumber'
         };
 
         // 기본 정보 채우기

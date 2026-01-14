@@ -538,6 +538,13 @@
             const loadReportBtn = document.getElementById('btn-load-report');
             if (loadReportBtn) {
                 loadReportBtn.addEventListener('click', () => {
+                    // 방법 1: 공유된 적발 보고서 데이터 (PDF 생성 시 저장됨)
+                    if (typeof loadSharedReportData === 'function' && hasSharedReportData()) {
+                        loadSharedReportData();
+                        return;
+                    }
+
+                    // 방법 2: 자동 저장된 적발 보고서 데이터 (폴백)
                     const reportData = loadFromStorage('report_draft');
                     if (!reportData) {
                         showToast('불러올 적발 보고서가 없습니다', 'warning');
