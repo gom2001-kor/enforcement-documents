@@ -1,0 +1,7 @@
+{
+  "buildCommand": null,
+  "outputDirectory": "dorofill",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/$1" }
+  ]
+}
